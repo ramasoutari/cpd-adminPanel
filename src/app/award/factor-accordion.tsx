@@ -68,17 +68,13 @@ export default function FactorAccordion({
 
   const startEditing = () => {
     const updatedAccordions = [...accordions];
-
     updatedAccordions[index].isAccordionEditing = true;
-
-    // Initialize tempEditData with a DEEP COPY of factorData + questioners
     updatedAccordions[index].tempEditData = {
       ...updatedAccordions[index].factorData,
       questioners: JSON.parse(
         JSON.stringify(updatedAccordions[index].questioners || [])
       ),
     };
-
     setAccordions(updatedAccordions);
   };
 
@@ -152,7 +148,6 @@ export default function FactorAccordion({
             },
           ];
         } else if (q.type === "001") {
-          // Always send "Yes" and "No" as text
           questionPayload.answers = [
             {
               text: language === "En" ? "Yes" : "نعم",
@@ -591,8 +586,9 @@ export default function FactorAccordion({
                 disabled={!accordion.isAccordionEditing}
                 placeholder="Factor Name"
                 value={
-                  accordion.tempEditData?.factorName ||
                   accordion.factorData.factorName
+                    ? accordion.factorData.factorName
+                    : accordion.tempEditData?.factorName
                 }
                 error={accordion.fieldErrors.factorName}
                 helperText={

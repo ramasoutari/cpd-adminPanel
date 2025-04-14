@@ -1,15 +1,14 @@
 import React from "react";
 import {
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
-  Button,
   Typography,
+  IconButton,
   Box,
 } from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import CloseIcon from "@mui/icons-material/Close";
 
 type DialogVariant = "success" | "error" | "none";
 
@@ -29,14 +28,14 @@ const ApiDialog: React.FC<ApiDialogProps> = ({
   variant = "none",
 }) => {
   const iconStyle = {
-    fontSize: 60,
-    mb: 2,
+    width: "200px",
+    height: "200px",
   };
 
   const getIcon = () => {
     switch (variant) {
       case "success":
-        return <CheckCircleIcon color="success" sx={iconStyle} />;
+        return <img src="/assets/weui_done2-outlined.png" style={iconStyle} />;
       case "error":
         return <ErrorIcon color="error" sx={iconStyle} />;
       default:
@@ -47,22 +46,11 @@ const ApiDialog: React.FC<ApiDialogProps> = ({
   const getTitleColor = () => {
     switch (variant) {
       case "success":
-        return "#2e7d32";
+        return "#999999";
       case "error":
         return "#d32f2f";
       default:
         return "inherit";
-    }
-  };
-
-  const getButtonColor = () => {
-    switch (variant) {
-      case "success":
-        return "#2e7d32";
-      case "error":
-        return "#d32f2f";
-      default:
-        return "#1976d2"; // Default MUI primary color
     }
   };
 
@@ -74,55 +62,54 @@ const ApiDialog: React.FC<ApiDialogProps> = ({
         "& .MuiPaper-root": {
           borderRadius: "12px",
           padding: "16px",
-          minWidth: "500px",
+          width: "600px",
+          maxWidth: "90vw",
           textAlign: "center",
+          position: "relative",
         },
       }}
     >
-      <DialogTitle
+      <IconButton
+        aria-label="close"
+        onClick={onClose}
+        sx={{
+          position: "absolute",
+          right: 8,
+          top: 8,
+          color: (theme) => theme.palette.grey[500],
+        }}
+      >
+        <CloseIcon />
+      </IconButton>
+
+      <Box
         sx={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          color: getTitleColor(),
-          fontWeight: "bold",
-          fontSize: "1.5rem",
+          padding: 3,
         }}
       >
-        {getIcon()}
-        {title}
-      </DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          {message}
-        </Typography>
-      </DialogContent>
-      <DialogActions
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
-        }}
-      >
-        <Button
-          variant="contained"
-          onClick={onClose}
+        <DialogTitle
           sx={{
-            borderRadius: "8px",
-            fontWeight: "bold",
-            textTransform: "none",
-            backgroundColor: getButtonColor(),
-            "&:hover": {
-              backgroundColor: getButtonColor(),
-              opacity: 0.9,
-            },
+            color: getTitleColor(),
+            fontWeight: "300",
+            fontSize: "42px",
+            fontFamily: "inter",
+            padding: 0,
+            mt: 2,
           }}
         >
-          Close
-        </Button>
-      </DialogActions>
+          {getIcon()}
+          <Box sx={{ mt: 2 }}>{title}</Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ padding: 0, mt: 2 }}>
+          <Typography variant="body1" sx={{ wordBreak: "break-word" }}>
+            {message}
+          </Typography>
+        </DialogContent>
+      </Box>
     </Dialog>
   );
 };

@@ -28,6 +28,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import Tooltip from "@mui/material/Tooltip";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -84,11 +87,13 @@ export default function Award() {
     message: string;
     type: string;
     onConfirm: () => void;
+    onCancel: () => void;
   }>({
     title: "Confirm",
     message: "",
     type: "",
     onConfirm: () => {},
+    onCancel: () => {},
   });
   const [expanded, setExpanded] = useState<string | false>(false);
   const [timelineEntries, setTimelineEntries] = useState([]);
@@ -231,18 +236,16 @@ export default function Award() {
       );
 
       setDialogOpen(true);
-      setDialogTitle("Success");
-      setType("Success");
-
-      setDialogMessage("Applicant terms saved successfully!");
+      setDialogTitle("Successfully");
+      setType("success");
+      setDialogMessage("");
       setApplicantSettings(response.data.data);
       setIsAccordionFiveEditing(false);
       setExpanded(false);
     } catch (error: any) {
       setDialogOpen(true);
-      setDialogTitle("Error");
+      setDialogTitle("");
       setType("Error");
-
       setDialogMessage(
         error.response?.data?.message ||
           "An error occurred while saving applicant terms."
@@ -310,9 +313,9 @@ export default function Award() {
       }
 
       setAward(response.data.data);
-      setDialogTitle("Success");
+      setDialogTitle("Successfully");
       setType("success");
-      setDialogMessage("Award saved successfully!");
+      setDialogMessage("");
       setExpanded(false);
     } catch (error: any) {
       console.error("Error while saving award:", error);
@@ -404,16 +407,16 @@ export default function Award() {
         }
       );
       setDialogOpen(true);
-      setDialogTitle("Success");
+      setDialogTitle("Successfully");
       setType("success");
-      setDialogMessage("prizes saved successfully!");
+      setDialogMessage("");
       setPrizeErrors([]);
       setIsAccordionTwoEditing(false);
       setExpanded(false);
     } catch (error: any) {
       console.error("Error saving award:", error);
       setDialogOpen(true);
-      setDialogTitle("Error");
+      setDialogTitle("");
       setType("error");
       setDialogMessage(
         error.response?.data?.message ||
@@ -484,9 +487,9 @@ export default function Award() {
           }
         );
         setDialogOpen(true);
-        setDialogTitle("Success");
+        setDialogTitle("Successfully");
         setType("success");
-        setDialogMessage("Timeline saved successfully!");
+        setDialogMessage("");
         fetchAwardMilestones();
         fetchAwardEvents();
         setIsAccordionThreeEditing(false);
@@ -494,6 +497,7 @@ export default function Award() {
       } catch (error: any) {
         setDialogOpen(true);
         setDialogTitle("Error");
+        setDialogTitle("");
         setType("error");
         setDialogMessage(
           error.response?.data?.message ||
@@ -568,13 +572,13 @@ export default function Award() {
         );
         setIsAccordionFourEditing(false);
         setDialogOpen(true);
-        setDialogTitle("Success");
+        setDialogTitle("Successfully");
         setType("success");
-        setDialogMessage("Judge terms saved successfully!");
+        setDialogMessage("");
         setExpanded(false);
       } catch (error: any) {
         setDialogOpen(true);
-        setDialogTitle("Error");
+        setDialogTitle("");
         setType("error");
         setDialogMessage(
           error.response?.data?.message ||
@@ -607,7 +611,6 @@ export default function Award() {
 
     if (!allowedTypes.includes(file.type)) {
       setDialogOpen(true);
-      setDialogTitle("Error");
       setType("error");
       setDialogMessage(
         "Unsupported file type. Please upload png, jpg, jpeg, bmp, or heic."
@@ -616,8 +619,8 @@ export default function Award() {
     }
     if (file.size > maxSize) {
       setDialogOpen(true);
-      setDialogTitle("Error");
       setType("error");
+      setDialogTitle("Error");
       setDialogMessage("File is too large. Maximum allowed size is 8 MB.");
       return;
     }
@@ -745,10 +748,8 @@ export default function Award() {
     }
   };
   const handleDeleteEntry = (index: number) => {
-    openConfirmDialog(
-      "Confirm Delete",
-      "Are you sure you want to delete this entry?",
-      () => deleteEntry(index)
+    openConfirmDialog("Are you sure you want to delete this entry?", () =>
+      deleteEntry(index)
     );
   };
 
@@ -780,12 +781,11 @@ export default function Award() {
       })
     );
 
-    // Clear any errors for this field
     setTimelineErrors((prev) => ({
       ...prev,
       [originalIndex]: {
         ...prev[originalIndex],
-        [key.replace(/En|Ar$/, "")]: undefined, // Clears both language variants
+        [key.replace(/En|Ar$/, "")]: undefined,
       },
     }));
   };
@@ -815,10 +815,8 @@ export default function Award() {
   };
 
   const handleDeleteTerm = (index: number, id: string) => {
-    openConfirmDialog(
-      "Confirm Delete",
-      "Are you sure you want to delete this judge term?",
-      () => deleteJudgeTerm(index, id)
+    openConfirmDialog("Are you sure you want to delete this judge term?", () =>
+      deleteJudgeTerm(index, id)
     );
   };
 
@@ -829,18 +827,11 @@ export default function Award() {
         `http://98.83.87.183:3001/api/awards/applicant-rules/${id}`
       );
       if (response.status === 200) {
-        // Create a copy of the current applicantSettings
         const updatedSettings = { ...applicantSettings };
-
-        // Remove the rule at the specified index
         updatedSettings.applicantRules = updatedSettings.applicantRules.filter(
           (_, i) => i !== index
         );
-
-        // Update the state
         setApplicantSettings(updatedSettings);
-
-        // Also update the terms and errors if you still need them separately
         const updatedTerms = [...applicantTerms];
         const updatedErrors = [...applicantTermseErrors];
         updatedTerms.splice(index, 1);
@@ -856,7 +847,6 @@ export default function Award() {
   };
   const handleDeleteApplicantTerm = (index: number, id: string) => {
     openConfirmDialog(
-      "Confirm Delete",
       "Are you sure you want to delete this applicant term?",
       () => deleteApplicantTerm(index, id)
     );
@@ -903,13 +893,12 @@ export default function Award() {
     return (
       <>
         {label}
-        <span style={{ fontSize:"18px",color: "#FF4242" }}>
+        <span style={{ fontSize: "18px", color: "#FF4242" }}>
           {languageLabel}
         </span>
       </>
     );
   };
-
 
   const validateFields = (data: any) => {
     const errors: any = {};
@@ -1259,6 +1248,7 @@ export default function Award() {
         updated.splice(index, 1);
         return updated;
       });
+      return;
     }
     try {
       const response = await axios.delete(
@@ -1282,17 +1272,17 @@ export default function Award() {
 
   const handleDeletePrize = (index, prizeId: string) => {
     openConfirmDialog(
-      "Confirm Delete",
       "Are you sure you want to delete this prize?",
-      () => deletePrize(index, prizeId)
+      () => deletePrize(index, prizeId),
+      () => handleCancelDelete()
     );
   };
   const openConfirmDialog = (
-    title: string,
     message: string,
-    onConfirm: () => void
+    onConfirm: () => void,
+    onCancel: () => void
   ) => {
-    setConfirmDialogConfig({ title, message, onConfirm });
+    setConfirmDialogConfig({ message, onConfirm, onCancel });
     setConfirmDialogOpen(true);
   };
 
@@ -1301,30 +1291,95 @@ export default function Award() {
   };
   return (
     <AdminLayout>
-      <Dialog open={confirmDialogOpen} onClose={handleCancelDelete}>
-        <DialogTitle>{confirmDialogConfig.title}</DialogTitle>
-        <DialogContent sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {confirmDialogConfig.type === "success" ? (
-            <CheckCircleIcon sx={{ color: "green" }} />
-          ) : confirmDialogConfig.type === "error" ? (
-            <ErrorIcon sx={{ color: "red" }} />
-          ) : null}
-          {confirmDialogConfig.message}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDelete} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              confirmDialogConfig.onConfirm();
-              setConfirmDialogOpen(false);
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={handleCancelDelete}
+        sx={{
+          "& .MuiPaper-root": {
+            width: "600px",
+            maxWidth: "90vw",
+            padding: "24px",
+            borderRadius: "12px",
+          },
+        }}
+      >
+        <IconButton
+          aria-label="close"
+          onClick={() => {
+            setConfirmDialogOpen(false);
+          }}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            gap: 2,
+          }}
+        >
+          <img src="/assets/clarity_remove-line.png" />
+
+          <DialogContent
+            sx={{
+              padding: 0,
+              fontSize: "18px",
+              color: "text.primary",
             }}
-            color="error"
           >
-            Delete
-          </Button>
-        </DialogActions>
+            {confirmDialogConfig.message}
+          </DialogContent>
+
+          <DialogActions
+            sx={{
+              justifyContent: "center",
+              width: "100%",
+              padding: 0,
+              mt: 3,
+              gap: 2,
+            }}
+          >
+            <Button
+              onClick={() => {
+                confirmDialogConfig.onCancel();
+                setConfirmDialogOpen(false);
+              }}
+              variant="contained"
+              sx={{
+                minWidth: "150px",
+                padding: "8px 16px",
+                fontSize: "16px",
+                bgcolor: "#999999",
+                color: "white",
+              }}
+            >
+              No
+            </Button>
+            <Button
+              onClick={() => {
+                confirmDialogConfig.onConfirm();
+                setConfirmDialogOpen(false);
+              }}
+              color="error"
+              variant="contained"
+              sx={{
+                minWidth: "150px",
+                padding: "8px 16px",
+                fontSize: "16px",
+              }}
+            >
+              Yes
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
 
       <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -1590,7 +1645,25 @@ export default function Award() {
                         <InputLabel
                           sx={{ color: "black", mb: 2, fontSize: "24px" }}
                         >
-                          {getLabelWithLanguage("Award Name")}
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                            sx={{ mb: 2 }}
+                          >
+                            <span style={{ fontSize: "24px", color: "black" }}>
+                              {getLabelWithLanguage("Award Name")}
+                            </span>
+                            <Tooltip title="Enter the official name of the award in the selected language.">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </Tooltip>
+                          </Stack>
                         </InputLabel>
                         <TextField
                           disabled={!isAccordionOneEditing}
@@ -1633,8 +1706,26 @@ export default function Award() {
                         <InputLabel
                           sx={{ color: "black", mb: 2, fontSize: "24px" }}
                         >
-                          {getLabelWithLanguage("Organizing Host (Sponsor)")}
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <span>
+                              {getLabelWithLanguage("Organizing Host/Sponsor")}
+                            </span>
+                            <Tooltip title="Enter the name of the organization or sponsor hosting the award.">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </Tooltip>
+                          </Stack>
                         </InputLabel>
+
                         <FormControl
                           sx={{
                             width: "100%",
@@ -1689,8 +1780,26 @@ export default function Award() {
                         <InputLabel
                           sx={{ color: "black", mb: 2, fontSize: "24px" }}
                         >
-                          {getLabelWithLanguage("Targeted Audience")}
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <span>
+                              {getLabelWithLanguage("Targeted Audience")}
+                            </span>
+                            <Tooltip title="Specify who this award is intended for (e.g., students, professionals, etc.)">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </Tooltip>
+                          </Stack>
                         </InputLabel>
+
                         <FormControl
                           sx={{
                             width: "100%",
@@ -1747,8 +1856,26 @@ export default function Award() {
                         <InputLabel
                           sx={{ color: "black", mb: 2, fontSize: "24px" }}
                         >
-                          {getLabelWithLanguage("Award Categories")}
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <span>
+                              {getLabelWithLanguage("Award Categories")}
+                            </span>
+                            <Tooltip title="Define the different types or groups this award will be categorized into.">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </Tooltip>
+                          </Stack>
                         </InputLabel>
+
                         <FormControl
                           sx={{
                             width: "100%",
@@ -1826,8 +1953,26 @@ export default function Award() {
                         <InputLabel
                           sx={{ color: "black", mb: 2, fontSize: "24px" }}
                         >
-                          {getLabelWithLanguage("About The Award")}
+                          <Stack
+                            direction="row"
+                            justifyContent="space-between"
+                            alignItems="center"
+                          >
+                            <span>
+                              {getLabelWithLanguage("About The Award")}
+                            </span>
+                            <Tooltip title="Provide a description or background about the award.">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "pointer",
+                                }}
+                              />
+                            </Tooltip>
+                          </Stack>
                         </InputLabel>
+
                         <TextField
                           disabled={!isAccordionOneEditing}
                           error={fieldErrors.aboutAward}
@@ -1959,9 +2104,7 @@ export default function Award() {
                     expandIcon={<ExpandMoreIcon />}
                     aria-controls="panel1-content"
                     id="panel1-header"
-                    sx={{
-                      width: "100%",
-                    }}
+                    sx={{ width: "100%" }}
                   >
                     <Box
                       sx={{
@@ -1978,27 +2121,41 @@ export default function Award() {
                           fontSize: "1.2rem",
                         }}
                       >
-                        prize
+                        Prize
                       </Typography>
-                      {expanded === "panel2" && !isAccordiontwoEditing && (
+
+                      {expanded === "panel2" && (
                         <Box sx={{ marginRight: "40px" }}>
-                          <a
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setIsAccordionTwoEditing(true);
-                            }}
-                            style={{
-                              color: "#5CB4FF",
-                              textDecoration: "none",
-                            }}
-                          >
-                            Edit
-                          </a>
+                          {!isAccordiontwoEditing ? (
+                            <a
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsAccordionTwoEditing(true);
+                              }}
+                              style={{
+                                color: "#5CB4FF",
+                                textDecoration: "none",
+                              }}
+                            >
+                              Edit
+                            </a>
+                          ) : (
+                            <Tooltip title="Details about the prize structure">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "default",
+                                }}
+                              />
+                            </Tooltip>
+                          )}
                         </Box>
                       )}
                     </Box>
                   </AccordionSummary>
+
                   <AccordionDetails>
                     <Grid
                       container
@@ -2372,12 +2529,27 @@ export default function Award() {
                           border: "1px solid #D5D8DD",
                         }}
                       >
-                        <Typography
-                          variant="h6"
-                          sx={{ mb: 2, fontWeight: "bold" }}
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
                         >
-                          Milestones
-                        </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ mb: 2, fontWeight: "bold" }}
+                          >
+                            Milestones
+                          </Typography>
+                          <Tooltip title="Add important Milestones or steps related to this award.">
+                            <InfoOutlinedIcon
+                              sx={{
+                                fontSize: 20,
+                                color: "#888",
+                                cursor: "default",
+                              }}
+                            />
+                          </Tooltip>
+                        </Stack>
                         {timelineEntries.filter((entry) => entry.type === "002")
                           .length === 0 ? (
                           <Typography
@@ -2565,12 +2737,27 @@ export default function Award() {
                           border: "1px solid #D5D8DD",
                         }}
                       >
-                        <Typography
-                          variant="h6"
-                          sx={{ mb: 2, fontWeight: "bold" }}
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
                         >
-                          Events
-                        </Typography>
+                          <Typography
+                            variant="h6"
+                            sx={{ mb: 2, fontWeight: "bold" }}
+                          >
+                            Events
+                          </Typography>
+                          <Tooltip title="Add important Events or steps related to this award.">
+                            <InfoOutlinedIcon
+                              sx={{
+                                fontSize: 20,
+                                color: "#888",
+                                cursor: "default",
+                              }}
+                            />
+                          </Tooltip>
+                        </Stack>
                         {timelineEntries.filter((entry) => entry.type === "001")
                           .length === 0 ? (
                           <Typography
@@ -2842,21 +3029,33 @@ export default function Award() {
                       >
                         Judges Terms and conditions
                       </Typography>
-                      {expanded === "panel4" && !isAccordionFourEditing && (
+                      {expanded === "panel4" && (
                         <Box sx={{ marginRight: "40px" }}>
-                          <a
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setIsAccordionFourEditing(true);
-                            }}
-                            style={{
-                              color: "#5CB4FF",
-                              textDecoration: "none",
-                            }}
-                          >
-                            Edit
-                          </a>
+                          {!isAccordionFourEditing ? (
+                            <a
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsAccordionFourEditing(true);
+                              }}
+                              style={{
+                                color: "#5CB4FF",
+                                textDecoration: "none",
+                              }}
+                            >
+                              Edit
+                            </a>
+                          ) : (
+                            <Tooltip title="Edit Judges Terms and Conditions">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "default",
+                                }}
+                              />
+                            </Tooltip>
+                          )}
                         </Box>
                       )}
                     </Box>
@@ -3064,21 +3263,33 @@ export default function Award() {
                       >
                         Applicant Terms and conditions{" "}
                       </Typography>
-                      {expanded === "panel5" && !isAccordionFiveEditing && (
+                      {expanded === "panel5" && (
                         <Box sx={{ marginRight: "40px" }}>
-                          <a
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setIsAccordionFiveEditing(true);
-                            }}
-                            style={{
-                              color: "#5CB4FF",
-                              textDecoration: "none",
-                            }}
-                          >
-                            Edit
-                          </a>
+                          {!isAccordionFiveEditing ? (
+                            <a
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setIsAccordionFiveEditing(true);
+                              }}
+                              style={{
+                                color: "#5CB4FF",
+                                textDecoration: "none",
+                              }}
+                            >
+                              Edit
+                            </a>
+                          ) : (
+                            <Tooltip title="Edit applicant Terms and Conditions">
+                              <InfoOutlinedIcon
+                                sx={{
+                                  fontSize: 20,
+                                  color: "#888",
+                                  cursor: "default",
+                                }}
+                              />
+                            </Tooltip>
+                          )}
                         </Box>
                       )}
                     </Box>

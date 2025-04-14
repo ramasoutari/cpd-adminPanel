@@ -23,6 +23,7 @@ export default function RatingCriteria({ language, awardId }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    console.log("language", language);
     const fetchFactors = async () => {
       if (!awardId) return;
 
@@ -48,20 +49,14 @@ export default function RatingCriteria({ language, awardId }) {
             questioners:
               factor.questions?.map((q) => ({
                 id: q.id,
-                question:
-                  language === "Ar"
-                    ? (q.textAr ?? q.textEn)
-                    : (q.textEn ?? q.textAr),
+                question: language === "Ar" ? q.textAr : q.textEn,
                 type: q.type,
                 weight: q.weight,
                 answeredWeight: q.answeredWeight,
                 answers:
                   q.answers?.map((a) => ({
                     id: a.id,
-                    answer:
-                      language === "Ar"
-                        ? (a.textAr ?? a.textEn)
-                        : (a.textEn ?? a.textAr),
+                    answer: language === "Ar" ? a.textAr : a.textEn,
                     mark: a.weight,
                     numericScale: a.numericScale,
                     scaleMin: a.scaleMin,
@@ -90,7 +85,6 @@ export default function RatingCriteria({ language, awardId }) {
 
     fetchFactors();
   }, [awardId, language, expandedPanel]);
-
 
   const handleChange = (panel) => (event, isExpanded) => {
     setExpandedPanel(isExpanded ? panel : null);
