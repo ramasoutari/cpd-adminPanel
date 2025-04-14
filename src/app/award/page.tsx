@@ -9,6 +9,7 @@ import {
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -48,14 +49,16 @@ import dayjs from "dayjs";
 import { RatingCriteriaProvider } from "../context/RatingCriteriaContext";
 export default function Award() {
   const [value, setValue] = useState(0);
+  const [awardBasicInfoLoading, setAwardBasicInfoLoading] = useState(false);
+  const [judgeLoading, setJudgeLoading] = useState(false);
+  const [prizesLoading, setPrizesLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [categories, setCategories] = useState([]);
-  const [prizeToDelete, setPrizeToDelete] = useState<string | null>(null);
-
   const [milestones, setMilestones] = useState([]);
+  const [loadingMilestones, setLoadingMilestones] = useState(false);
+  const [loadingEvents, setLoadingEvents] = useState(false);
   const [awardMilestones, setAwardMilestones] = useState([]);
   const [awardEvents, setAwardEvents] = useState([]);
-  const [hasLoadedJudgeTerms, setHasLoadedJudgeTerms] = useState(false);
   const [sponsors, setSponsors] = useState([]);
   const [award, setAward] = useState<any>(null);
   const [applicantSettings, setApplicantSettings] = useState({
@@ -116,7 +119,9 @@ export default function Award() {
     logo: null,
   });
   const [prizes, setPrizes] = useState([{ rankEn: "Prize 1", value: 0 }]);
-  const [Judgeterms, setJudgeTerms] = useState<string[]>([""]);
+  const [Judgeterms, setJudgeTerms] = useState<string[]>([
+    { id: undefined, ruleEn: "", ruleAr: null },
+  ]);
   const [applicantTerms, setApplicantTerms] = useState<string[]>([""]);
   const [applicantTermseErrors, setApplicantTermsErrors] = useState<string[]>(
     []
@@ -272,7 +277,6 @@ export default function Award() {
       return newTerms;
     });
 
-    // Clear error for this field
     setJudgeTermsErrors((prev) => {
       const newErrors = [...prev];
       newErrors[index] = "";
@@ -1050,25 +1054,21 @@ export default function Award() {
     }
   };
   useEffect(() => {
-    if (
-      expanded === "panel5"
-      // &&award.id
-      // !hasLoadedApplicantTerms
-    ) {
+    if (expanded === "panel5") {
       fetchApplicantTerms();
-      // setHasLoadedApplicantTerms(true);
     }
   }, [expanded]);
   const fetchAwardBasicInfo = async () => {
     if (!award?.id) return;
 
+    setAwardBasicInfoLoading(true); // start loading
     try {
       const response = await axios.get(
         `http://98.83.87.183:3001/api/awards/${award.id}`
       );
       const apiData = response.data.data;
 
-      console.log("API Response:", apiData); // Debug log
+      console.log("API Response:", apiData);
 
       setAwardData((prev) => ({
         ...prev,
@@ -1084,8 +1084,11 @@ export default function Award() {
       }));
     } catch (error) {
       console.error("Error fetching award basic info:", error);
+    } finally {
+      setAwardBasicInfoLoading(false); // end loading
     }
   };
+
   useEffect(() => {
     if (expanded === "panel1") {
       fetchAwardBasicInfo();
@@ -1097,6 +1100,7 @@ export default function Award() {
   }, [timelineEntries, milestones]);
   const fetchAwardMilestones = async () => {
     if (!award || !award.id) return;
+    setLoadingMilestones(true);
     try {
       const response = await axios.get(
         `http://98.83.87.183:3001/api/awards/awardMilestones/${award.id}`
@@ -1111,19 +1115,25 @@ export default function Award() {
           date: milestone.dateOfMilestone || null,
         };
       });
+
       setTimelineEntries((prevEntries) => {
         const filteredEntries = prevEntries.filter(
           (entry) => entry.type !== "002"
         );
         return [...filteredEntries, ...milestonesData];
       });
+
       setAwardMilestones(response.data.data);
     } catch (error) {
       console.error("Failed to fetch award Milestones", error);
+    } finally {
+      setLoadingMilestones(false);
     }
   };
+
   const fetchAwardEvents = async () => {
     if (!award || !award.id) return;
+    setLoadingEvents(true);
     try {
       const response = await axios.get(
         `http://98.83.87.183:3001/api/awards/events/${award.id}`
@@ -1147,11 +1157,15 @@ export default function Award() {
         );
         return [...filteredEntries, ...eventsData];
       });
+
       setAwardEvents(response.data.data);
     } catch (error) {
       console.error("Failed to fetch award Events", error);
+    } finally {
+      setLoadingEvents(false);
     }
   };
+
   useEffect(() => {
     if (expanded === "panel3") {
       fetchAwardMilestones();
@@ -1161,6 +1175,8 @@ export default function Award() {
 
   const fetchPrizes = async () => {
     if (!award || !award.id) return;
+
+    setPrizesLoading(true);
     try {
       const response = await axios.get(
         `http://98.83.87.183:3001/api/awards/prizes/${award.id}`
@@ -1174,7 +1190,9 @@ export default function Award() {
 
       setPrizes(updatedPrizes);
     } catch (error) {
-      console.error("Failed to fetch judge terms", error);
+      console.error("Failed to fetch prizes", error);
+    } finally {
+      setPrizesLoading(false);
     }
   };
 
@@ -1187,6 +1205,9 @@ export default function Award() {
   }, [expanded]);
   const fetchJudgeTerms = async () => {
     if (!award || !award.id) return;
+
+    setJudgeLoading(true); // Start loading
+
     try {
       const response = await axios.get(
         `http://98.83.87.183:3001/api/awards/judgeRules/${award.id}`
@@ -1194,18 +1215,16 @@ export default function Award() {
       setJudgeTerms(response.data.data);
     } catch (error) {
       console.error("Failed to fetch judge terms", error);
+    } finally {
+      setJudgeLoading(false); // Stop loading
     }
   };
   useEffect(() => {
-    if (
-      expanded === "panel4"
-      // &&award.id
-      // !hasLoadedJudgeTerms
-    ) {
+    if (expanded === "panel4") {
       fetchJudgeTerms();
-      // setHasLoadedJudgeTerms(true);
     }
   }, [expanded]);
+
   const validateJudgeTerms = () => {
     const errors: string[] = [];
     let isValid = true;
@@ -1289,6 +1308,13 @@ export default function Award() {
   const handleCancelDelete = () => {
     setConfirmDialogOpen(false);
   };
+  // if (judgeLoading) {
+  //   return (
+  //     <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+  //       <CircularProgress />
+  //     </Box>
+  //   );
+  // }
   return (
     <AdminLayout>
       <Dialog
@@ -1563,523 +1589,551 @@ export default function Award() {
                   </AccordionSummary>
 
                   <AccordionDetails>
-                    <Box
-                      sx={{
-                        mb: 2,
-                        pointerEvents: isAccordionOneEditing ? "auto" : "none",
-                        opacity: isAccordionOneEditing ? 1 : 0.6,
-                      }}
-                    >
-                      <label
-                        htmlFor="upload-logo"
-                        style={{ cursor: "pointer" }}
+                    {awardBasicInfoLoading ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          height: "200px",
+                        }}
                       >
-                        <Box>
-                          <img
-                            src={
-                              previewUrl ||
-                              (language === "Ar"
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <>
+                        <Box
+                          sx={{
+                            mb: 2,
+                            pointerEvents: isAccordionOneEditing
+                              ? "auto"
+                              : "none",
+                            opacity: isAccordionOneEditing ? 1 : 0.6,
+                          }}
+                        >
+                          <label
+                            htmlFor="upload-logo"
+                            style={{ cursor: "pointer" }}
+                          >
+                            <Box>
+                              <img
+                                src={
+                                  previewUrl ||
+                                  (language === "Ar"
+                                    ? awardData.logoAr
+                                      ? `http://98.83.87.183:3001/${awardData.logoAr}`
+                                      : null
+                                    : awardData.logoEn
+                                      ? `http://98.83.87.183:3001/${awardData.logoEn}`
+                                      : null) ||
+                                  "/assets/add-logo.png"
+                                }
+                                alt="Logo"
+                                style={{
+                                  width: "100px",
+                                  height: "auto",
+                                  borderRadius: "8px",
+                                  objectFit: "contain",
+                                }}
+                              />
+                            </Box>
+                            <div
+                              style={{
+                                color: "#5CB4FF",
+                                paddingTop: 10,
+                                fontSize: "14px",
+                                marginRight: 8,
+                              }}
+                            >
+                              {language === "Ar"
                                 ? awardData.logoAr
-                                  ? `http://98.83.87.183:3001/${awardData.logoAr}`
-                                  : null
+                                  ? "Change Logo"
+                                  : "Add Logo"
                                 : awardData.logoEn
-                                  ? `http://98.83.87.183:3001/${awardData.logoEn}`
-                                  : null) ||
-                              "/assets/add-logo.png"
-                            }
-                            alt="Logo"
-                            style={{
-                              width: "100px",
-                              height: "auto",
-                              borderRadius: "8px",
-                              objectFit: "contain",
-                            }}
+                                  ? "Change Logo"
+                                  : "Add Logo"}
+                            </div>
+                          </label>
+                          <input
+                            type="file"
+                            accept=".png, .jpg, .jpeg, .bmp, .heic"
+                            onChange={handleLogoChange}
+                            id="upload-logo"
+                            hidden={true}
                           />
                         </Box>
-                        <div
-                          style={{
-                            color: "#5CB4FF",
-                            paddingTop: 10,
-                            fontSize: "14px",
-                            marginRight: 8,
-                          }}
-                        >
-                          {language === "Ar"
-                            ? awardData.logoAr
-                              ? "Change Logo"
-                              : "Add Logo"
-                            : awardData.logoEn
-                              ? "Change Logo"
-                              : "Add Logo"}
-                        </div>
-                      </label>
-                      <input
-                        type="file"
-                        accept=".png, .jpg, .jpeg, .bmp, .heic"
-                        onChange={handleLogoChange}
-                        id="upload-logo"
-                        hidden={true}
-                      />
-                    </Box>
 
-                    <Grid
-                      container
-                      direction="column"
-                      rowSpacing={2}
-                      sx={{
-                        justifyContent: "center",
-                        alignItems: "stretch",
-                        borderRadius: "12px",
-                        pt: 2,
-                      }}
-                    >
-                      <Grid
-                        sx={{
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
-                          borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
-                        }}
-                        size={12}
-                      >
-                        <InputLabel
-                          sx={{ color: "black", mb: 2, fontSize: "24px" }}
-                        >
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            sx={{ mb: 2 }}
-                          >
-                            <span style={{ fontSize: "24px", color: "black" }}>
-                              {getLabelWithLanguage("Award Name")}
-                            </span>
-                            <Tooltip title="Enter the official name of the award in the selected language.">
-                              <InfoOutlinedIcon
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#888",
-                                  cursor: "pointer",
-                                }}
-                              />
-                            </Tooltip>
-                          </Stack>
-                        </InputLabel>
-                        <TextField
-                          disabled={!isAccordionOneEditing}
-                          placeholder="Award Name"
-                          value={
-                            language === "Ar"
-                              ? awardData.nameAr
-                              : awardData.nameEn
-                          }
-                          error={fieldErrors.awardName}
-                          helperText={
-                            fieldErrors.awardName
-                              ? "Award name is required"
-                              : ""
-                          }
-                          onChange={(e) => {
-                            const fieldName =
-                              language === "Ar" ? "nameAr" : "nameEn";
-                            setAwardData((prev) => ({
-                              ...prev,
-                              [fieldName]: e.target.value,
-                            }));
-                          }}
+                        <Grid
+                          container
+                          direction="column"
+                          rowSpacing={2}
                           sx={{
-                            backgroundColor: "white",
-                            width: "100%",
+                            justifyContent: "center",
+                            alignItems: "stretch",
                             borderRadius: "12px",
-                          }}
-                        />
-                      </Grid>
-                      <Grid
-                        sx={{
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
-                          borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
-                        }}
-                        size={12}
-                      >
-                        <InputLabel
-                          sx={{ color: "black", mb: 2, fontSize: "24px" }}
-                        >
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <span>
-                              {getLabelWithLanguage("Organizing Host/Sponsor")}
-                            </span>
-                            <Tooltip title="Enter the name of the organization or sponsor hosting the award.">
-                              <InfoOutlinedIcon
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#888",
-                                  cursor: "pointer",
-                                }}
-                              />
-                            </Tooltip>
-                          </Stack>
-                        </InputLabel>
-
-                        <FormControl
-                          sx={{
-                            width: "100%",
-                            borderRadius: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
+                            pt: 2,
                           }}
                         >
-                          <Select
-                            disabled={!isAccordionOneEditing}
-                            name="organizingHost"
-                            labelId="organizing-host-select"
-                            value={awardData.organizingHost.id || ""}
-                            onChange={handleChangeSelect}
-                            error={fieldErrors.organizingHost}
-                            displayEmpty
+                          <Grid
                             sx={{
-                              height: 40,
-                              padding: "6px 8px",
+                              backgroundColor: "#FBFBFB",
+                              p: 3,
                               borderRadius: "12px",
-                              backgroundColor: "white",
-                              width: "100%",
+                              border: "1px solid #D5D8DD",
                             }}
-                            inputProps={{ "aria-label": "Without label" }}
+                            size={12}
                           >
-                            <MenuItem disabled value="">
-                              <em>Select Sponsor</em>
-                            </MenuItem>
-                            {sponsors.map((item) => (
-                              <MenuItem key={item.id} value={item.id}>
-                                {language === "En" ? item.nameEn : item.nameAr}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                          {fieldErrors.organizingHost && (
-                            <Typography color="error" variant="caption">
-                              Organizing Host is required
-                            </Typography>
-                          )}
-                        </FormControl>
-                      </Grid>
-                      <Grid
-                        sx={{
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
-                          borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
-                        }}
-                        size={12}
-                      >
-                        <InputLabel
-                          sx={{ color: "black", mb: 2, fontSize: "24px" }}
-                        >
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <span>
-                              {getLabelWithLanguage("Targeted Audience")}
-                            </span>
-                            <Tooltip title="Specify who this award is intended for (e.g., students, professionals, etc.)">
-                              <InfoOutlinedIcon
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#888",
-                                  cursor: "pointer",
-                                }}
-                              />
-                            </Tooltip>
-                          </Stack>
-                        </InputLabel>
-
-                        <FormControl
-                          sx={{
-                            width: "100%",
-                            borderRadius: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                          }}
-                        >
-                          <Select
-                            disabled={!isAccordionOneEditing}
-                            name="targetedAudience"
-                            error={fieldErrors.targetedAudience}
-                            labelId="audience-select"
-                            value={awardData.targetedAudience?.id || ""}
-                            onChange={handleChangeSelect}
-                            displayEmpty
+                            <InputLabel
+                              sx={{ color: "black", mb: 2, fontSize: "24px" }}
+                            >
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                                sx={{ mb: 2 }}
+                              >
+                                <span
+                                  style={{ fontSize: "24px", color: "black" }}
+                                >
+                                  {getLabelWithLanguage("Award Name")}
+                                </span>
+                                <Tooltip title="Enter the official name of the award in the selected language.">
+                                  <InfoOutlinedIcon
+                                    sx={{
+                                      fontSize: 20,
+                                      color: "#888",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Stack>
+                            </InputLabel>
+                            <TextField
+                              disabled={!isAccordionOneEditing}
+                              placeholder="Award Name"
+                              value={
+                                language === "Ar"
+                                  ? awardData.nameAr
+                                  : awardData.nameEn
+                              }
+                              error={fieldErrors.awardName}
+                              helperText={
+                                fieldErrors.awardName
+                                  ? "Award name is required"
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const fieldName =
+                                  language === "Ar" ? "nameAr" : "nameEn";
+                                setAwardData((prev) => ({
+                                  ...prev,
+                                  [fieldName]: e.target.value,
+                                }));
+                              }}
+                              sx={{
+                                backgroundColor: "white",
+                                width: "100%",
+                                borderRadius: "12px",
+                              }}
+                            />
+                          </Grid>
+                          <Grid
                             sx={{
-                              height: 40,
-                              padding: "6px 8px",
+                              backgroundColor: "#FBFBFB",
+                              p: 3,
                               borderRadius: "12px",
-                              backgroundColor: "white",
-                              width: "100%",
+                              border: "1px solid #D5D8DD",
                             }}
-                            inputProps={{ "aria-label": "Without label" }}
+                            size={12}
                           >
-                            <MenuItem disabled value="">
-                              <em>Select Targeted Audience</em>
-                            </MenuItem>
-                            {audience.map((item) => (
-                              <MenuItem key={item.id} value={item.id}>
-                                {language === "En"
-                                  ? item.targetEn
-                                  : item.targetAr}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                          {fieldErrors.targetedAudience && (
-                            <Typography color="error" variant="caption">
-                              Targeted Audience is required
-                            </Typography>
-                          )}
-                        </FormControl>
-                      </Grid>
-                      <Grid
-                        sx={{
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
-                          borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
-                        }}
-                        size={12}
-                      >
-                        <InputLabel
-                          sx={{ color: "black", mb: 2, fontSize: "24px" }}
-                        >
-                          <Stack
-                            direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
-                          >
-                            <span>
-                              {getLabelWithLanguage("Award Categories")}
-                            </span>
-                            <Tooltip title="Define the different types or groups this award will be categorized into.">
-                              <InfoOutlinedIcon
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#888",
-                                  cursor: "pointer",
-                                }}
-                              />
-                            </Tooltip>
-                          </Stack>
-                        </InputLabel>
+                            <InputLabel
+                              sx={{ color: "black", mb: 2, fontSize: "24px" }}
+                            >
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                              >
+                                <span>
+                                  {getLabelWithLanguage(
+                                    "Organizing Host/Sponsor"
+                                  )}
+                                </span>
+                                <Tooltip title="Enter the name of the organization or sponsor hosting the award.">
+                                  <InfoOutlinedIcon
+                                    sx={{
+                                      fontSize: 20,
+                                      color: "#888",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Stack>
+                            </InputLabel>
 
-                        <FormControl
-                          sx={{
-                            width: "100%",
-                            borderRadius: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                          }}
-                        >
-                          <Select
-                            multiple
-                            disabled={!isAccordionOneEditing}
-                            name="categoriesIds"
-                            labelId="categories-select"
-                            onChange={handleChangeSelect}
-                            error={fieldErrors.categoriesIds}
-                            displayEmpty
-                            value={awardData.categoriesIds || []} // ✅ FIXED
+                            <FormControl
+                              sx={{
+                                width: "100%",
+                                borderRadius: "12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                              }}
+                            >
+                              <Select
+                                disabled={!isAccordionOneEditing}
+                                name="organizingHost"
+                                labelId="organizing-host-select"
+                                value={awardData.organizingHost.id || ""}
+                                onChange={handleChangeSelect}
+                                error={fieldErrors.organizingHost}
+                                displayEmpty
+                                sx={{
+                                  height: 40,
+                                  padding: "6px 8px",
+                                  borderRadius: "12px",
+                                  backgroundColor: "white",
+                                  width: "100%",
+                                }}
+                                inputProps={{ "aria-label": "Without label" }}
+                              >
+                                <MenuItem disabled value="">
+                                  <em>Select Sponsor</em>
+                                </MenuItem>
+                                {sponsors.map((item) => (
+                                  <MenuItem key={item.id} value={item.id}>
+                                    {language === "En"
+                                      ? item.nameEn
+                                      : item.nameAr}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                              {fieldErrors.organizingHost && (
+                                <Typography color="error" variant="caption">
+                                  Organizing Host is required
+                                </Typography>
+                              )}
+                            </FormControl>
+                          </Grid>
+                          <Grid
                             sx={{
-                              height: 40,
-                              padding: "6px 8px",
+                              backgroundColor: "#FBFBFB",
+                              p: 3,
                               borderRadius: "12px",
-                              backgroundColor: "white",
-                              width: "100%",
+                              border: "1px solid #D5D8DD",
                             }}
-                            inputProps={{ "aria-label": "Without label" }}
-                            renderValue={(selected) => {
-                              if (selected.length === 0)
-                                return <em>Select Categories</em>;
-                              return categories
-                                .filter((c) => selected.includes(c.id))
-                                .map((c) =>
-                                  language === "En" ? c.nameEn : c.nameAr
-                                )
-                                .join(", ");
-                            }}
+                            size={12}
                           >
-                            <MenuItem disabled value="">
-                              <em>Select Categories</em>
-                            </MenuItem>
-                            {categories.map((category) => (
-                              <MenuItem key={category.id} value={category.id}>
-                                <Checkbox
-                                  checked={(
-                                    awardData.categoriesIds || []
-                                  ).includes(category.id)}
-                                />
-                                <ListItemText
-                                  primary={
-                                    language === "En"
-                                      ? category.nameEn
-                                      : category.nameAr
-                                  }
-                                />
-                              </MenuItem>
-                            ))}
-                          </Select>
+                            <InputLabel
+                              sx={{ color: "black", mb: 2, fontSize: "24px" }}
+                            >
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                              >
+                                <span>
+                                  {getLabelWithLanguage("Targeted Audience")}
+                                </span>
+                                <Tooltip title="Specify who this award is intended for (e.g., students, professionals, etc.)">
+                                  <InfoOutlinedIcon
+                                    sx={{
+                                      fontSize: 20,
+                                      color: "#888",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Stack>
+                            </InputLabel>
 
-                          {fieldErrors.categoriesIds && (
-                            <Typography color="error" variant="caption">
-                              Categories are required
-                            </Typography>
-                          )}
-                        </FormControl>
-                      </Grid>
-                      <Grid
-                        sx={{
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
-                          borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
-                        }}
-                        size={12}
-                      >
-                        <InputLabel
-                          sx={{ color: "black", mb: 2, fontSize: "24px" }}
-                        >
+                            <FormControl
+                              sx={{
+                                width: "100%",
+                                borderRadius: "12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                              }}
+                            >
+                              <Select
+                                disabled={!isAccordionOneEditing}
+                                name="targetedAudience"
+                                error={fieldErrors.targetedAudience}
+                                labelId="audience-select"
+                                value={awardData.targetedAudience?.id || ""}
+                                onChange={handleChangeSelect}
+                                displayEmpty
+                                sx={{
+                                  height: 40,
+                                  padding: "6px 8px",
+                                  borderRadius: "12px",
+                                  backgroundColor: "white",
+                                  width: "100%",
+                                }}
+                                inputProps={{ "aria-label": "Without label" }}
+                              >
+                                <MenuItem disabled value="">
+                                  <em>Select Targeted Audience</em>
+                                </MenuItem>
+                                {audience.map((item) => (
+                                  <MenuItem key={item.id} value={item.id}>
+                                    {language === "En"
+                                      ? item.targetEn
+                                      : item.targetAr}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                              {fieldErrors.targetedAudience && (
+                                <Typography color="error" variant="caption">
+                                  Targeted Audience is required
+                                </Typography>
+                              )}
+                            </FormControl>
+                          </Grid>
+                          <Grid
+                            sx={{
+                              backgroundColor: "#FBFBFB",
+                              p: 3,
+                              borderRadius: "12px",
+                              border: "1px solid #D5D8DD",
+                            }}
+                            size={12}
+                          >
+                            <InputLabel
+                              sx={{ color: "black", mb: 2, fontSize: "24px" }}
+                            >
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                              >
+                                <span>
+                                  {getLabelWithLanguage("Award Categories")}
+                                </span>
+                                <Tooltip title="Define the different types or groups this award will be categorized into.">
+                                  <InfoOutlinedIcon
+                                    sx={{
+                                      fontSize: 20,
+                                      color: "#888",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Stack>
+                            </InputLabel>
+
+                            <FormControl
+                              sx={{
+                                width: "100%",
+                                borderRadius: "12px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "8px",
+                              }}
+                            >
+                              <Select
+                                multiple
+                                disabled={!isAccordionOneEditing}
+                                name="categoriesIds"
+                                labelId="categories-select"
+                                onChange={handleChangeSelect}
+                                error={fieldErrors.categoriesIds}
+                                displayEmpty
+                                value={awardData.categoriesIds || []}
+                                sx={{
+                                  height: 40,
+                                  padding: "6px 8px",
+                                  borderRadius: "12px",
+                                  backgroundColor: "white",
+                                  width: "100%",
+                                }}
+                                inputProps={{ "aria-label": "Without label" }}
+                                renderValue={(selected) => {
+                                  if (selected.length === 0)
+                                    return <em>Select Categories</em>;
+                                  return categories
+                                    .filter((c) => selected.includes(c.id))
+                                    .map((c) =>
+                                      language === "En" ? c.nameEn : c.nameAr
+                                    )
+                                    .join(", ");
+                                }}
+                              >
+                                <MenuItem disabled value="">
+                                  <em>Select Categories</em>
+                                </MenuItem>
+                                {categories.map((category) => (
+                                  <MenuItem
+                                    key={category.id}
+                                    value={category.id}
+                                  >
+                                    <Checkbox
+                                      checked={(
+                                        awardData.categoriesIds || []
+                                      ).includes(category.id)}
+                                    />
+                                    <ListItemText
+                                      primary={
+                                        language === "En"
+                                          ? category.nameEn
+                                          : category.nameAr
+                                      }
+                                    />
+                                  </MenuItem>
+                                ))}
+                              </Select>
+
+                              {fieldErrors.categoriesIds && (
+                                <Typography color="error" variant="caption">
+                                  Categories are required
+                                </Typography>
+                              )}
+                            </FormControl>
+                          </Grid>
+                          <Grid
+                            sx={{
+                              backgroundColor: "#FBFBFB",
+                              p: 3,
+                              borderRadius: "12px",
+                              border: "1px solid #D5D8DD",
+                            }}
+                            size={12}
+                          >
+                            <InputLabel
+                              sx={{ color: "black", mb: 2, fontSize: "24px" }}
+                            >
+                              <Stack
+                                direction="row"
+                                justifyContent="space-between"
+                                alignItems="center"
+                              >
+                                <span>
+                                  {getLabelWithLanguage("About The Award")}
+                                </span>
+                                <Tooltip title="Provide a description or background about the award.">
+                                  <InfoOutlinedIcon
+                                    sx={{
+                                      fontSize: 20,
+                                      color: "#888",
+                                      cursor: "pointer",
+                                    }}
+                                  />
+                                </Tooltip>
+                              </Stack>
+                            </InputLabel>
+
+                            <TextField
+                              disabled={!isAccordionOneEditing}
+                              error={fieldErrors.aboutAward}
+                              helperText={
+                                fieldErrors.aboutAward
+                                  ? "About the award is required"
+                                  : ""
+                              }
+                              placeholder="About The Award"
+                              value={
+                                language === "En"
+                                  ? awardData.objectiveEn
+                                  : awardData.objectiveAr
+                              }
+                              onChange={(e) => {
+                                const fieldName =
+                                  language === "Ar"
+                                    ? "objectiveAr"
+                                    : "objectiveEn";
+                                setAwardData((prev) => ({
+                                  ...prev,
+                                  [fieldName]: e.target.value,
+                                }));
+                              }}
+                              multiline
+                              rows={8}
+                              sx={{
+                                backgroundColor: "white",
+                                width: "100%",
+                                borderRadius: "12px",
+                              }}
+                            />
+                          </Grid>
+                        </Grid>
+                        {isAccordionOneEditing && (
                           <Stack
                             direction="row"
-                            justifyContent="space-between"
-                            alignItems="center"
+                            spacing={2}
+                            sx={{ pt: 2, justifyContent: "center" }}
                           >
-                            <span>
-                              {getLabelWithLanguage("About The Award")}
-                            </span>
-                            <Tooltip title="Provide a description or background about the award.">
-                              <InfoOutlinedIcon
-                                sx={{
-                                  fontSize: 20,
-                                  color: "#888",
-                                  cursor: "pointer",
-                                }}
-                              />
-                            </Tooltip>
+                            <Button
+                              onClick={() => {
+                                setIsAccordionOneEditing(false);
+                                setFieldErrors({
+                                  awardName: false,
+                                  organizingHost: false,
+                                  targetedAudience: false,
+                                  categoriesIds: false,
+                                  aboutAward: false,
+                                });
+                                setAwardData({
+                                  nameEn: "",
+                                  nameAr: "",
+                                  objectiveEn: "",
+                                  objectiveAr: "",
+                                  logoEn: "",
+                                  logoAr: "",
+                                  organizingHost: "",
+                                  targetedAudience: "",
+                                  categoriesIds: [],
+                                  aboutAward: "",
+                                  logo: null,
+                                });
+                                setPreviewUrl(null);
+                                setExpanded(false);
+                              }}
+                              sx={{
+                                backgroundColor: "#D9D9D9",
+                                color: "black",
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                width: "150px",
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                const currentFieldErrors =
+                                  validateFields(awardData);
+                                console.log(
+                                  "currentFieldErrors",
+                                  currentFieldErrors
+                                );
+
+                                const hasErrors = Object.values(
+                                  currentFieldErrors
+                                ).some((error) => error);
+
+                                if (!hasErrors) {
+                                  console.log("Calling handleSave");
+
+                                  handleSave();
+                                  setIsAccordionOneEditing(false);
+                                } else {
+                                  return;
+                                }
+                              }}
+                              sx={{
+                                backgroundColor: " #721F31",
+                                color: "white",
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                width: "300px",
+                              }}
+                            >
+                              Save
+                            </Button>
                           </Stack>
-                        </InputLabel>
-
-                        <TextField
-                          disabled={!isAccordionOneEditing}
-                          error={fieldErrors.aboutAward}
-                          helperText={
-                            fieldErrors.aboutAward
-                              ? "About the award is required"
-                              : ""
-                          }
-                          placeholder="About The Award"
-                          value={
-                            language === "En"
-                              ? awardData.objectiveEn
-                              : awardData.objectiveAr
-                          }
-                          onChange={(e) => {
-                            const fieldName =
-                              language === "Ar" ? "objectiveAr" : "objectiveEn";
-                            setAwardData((prev) => ({
-                              ...prev,
-                              [fieldName]: e.target.value,
-                            }));
-                          }}
-                          multiline
-                          rows={8}
-                          sx={{
-                            backgroundColor: "white",
-                            width: "100%",
-                            borderRadius: "12px",
-                          }}
-                        />
-                      </Grid>
-                    </Grid>
-                    {isAccordionOneEditing && (
-                      <Stack
-                        direction="row"
-                        spacing={2}
-                        sx={{ pt: 2, justifyContent: "center" }}
-                      >
-                        <Button
-                          onClick={() => {
-                            setIsAccordionOneEditing(false);
-                            setFieldErrors({
-                              awardName: false,
-                              organizingHost: false,
-                              targetedAudience: false,
-                              categoriesIds: false,
-                              aboutAward: false,
-                            });
-                            setAwardData({
-                              nameEn: "",
-                              nameAr: "",
-                              objectiveEn: "",
-                              objectiveAr: "",
-                              logoEn: "",
-                              logoAr: "",
-                              organizingHost: "",
-                              targetedAudience: "",
-                              categoriesIds: [],
-                              aboutAward: "",
-                              logo: null,
-                            });
-                            setPreviewUrl(null);
-                            setExpanded(false);
-                          }}
-                          sx={{
-                            backgroundColor: "#D9D9D9",
-                            color: "black",
-                            textTransform: "none",
-                            borderRadius: "8px",
-                            width: "150px",
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            const currentFieldErrors =
-                              validateFields(awardData);
-                            console.log(
-                              "currentFieldErrors",
-                              currentFieldErrors
-                            );
-
-                            const hasErrors = Object.values(
-                              currentFieldErrors
-                            ).some((error) => error);
-
-                            if (!hasErrors) {
-                              console.log("Calling handleSave");
-
-                              handleSave();
-                              setIsAccordionOneEditing(false);
-                            } else {
-                              return;
-                            }
-                          }}
-                          sx={{
-                            backgroundColor: " #721F31",
-                            color: "white",
-                            textTransform: "none",
-                            borderRadius: "8px",
-                            width: "300px",
-                          }}
-                        >
-                          Save
-                        </Button>
-                      </Stack>
+                        )}
+                      </>
                     )}
                   </AccordionDetails>
                 </Accordion>
@@ -2157,290 +2211,303 @@ export default function Award() {
                   </AccordionSummary>
 
                   <AccordionDetails>
-                    <Grid
-                      container
-                      direction="column"
-                      rowSpacing={2}
-                      sx={{
-                        width: "100%",
-                        justifyContent: "center",
-                        alignItems: "stretch",
-                        borderRadius: "12px",
-                        pt: 2,
-                        pointerEvents: isAccordiontwoEditing ? "auto" : "none",
-                        opacity: isAccordiontwoEditing ? 1 : 0.6,
-                      }}
-                    >
+                    {prizesLoading ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          height: "200px",
+                        }}
+                      >
+                        <CircularProgress />
+                      </Box>
+                    ) : (
                       <Grid
+                        container
+                        direction="column"
+                        rowSpacing={2}
                         sx={{
                           width: "100%",
-                          backgroundColor: "#FBFBFB",
-                          p: 3,
+                          justifyContent: "center",
+                          alignItems: "stretch",
                           borderRadius: "12px",
-                          border: "1px solid #D5D8DD",
+                          pt: 2,
+                          pointerEvents: isAccordiontwoEditing
+                            ? "auto"
+                            : "none",
+                          opacity: isAccordiontwoEditing ? 1 : 0.6,
                         }}
-                        size={12}
                       >
-                        {Array.isArray(prizes) && prizes.length > 0
-                          ? prizes.map((prize, index) => (
-                              <Box key={index}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    mb: 2,
-                                  }}
-                                >
-                                  <InputLabel
-                                    sx={{ color: "black", fontSize: "24px" }}
-                                  >
-                                    {language === "En"
-                                      ? prize.rankEn
-                                      : prize.rankAr}
-                                  </InputLabel>
-                                  {index >= 1 && (
-                                    <DeleteIcon
-                                      onClick={() =>
-                                        handleDeletePrize(index, prize.id)
-                                      }
-                                      sx={{
-                                        cursor: "pointer",
-                                        color: "#721F31",
-                                      }}
-                                    />
-                                  )}
-                                </Box>
-                                <TextField
-                                  disabled={!isAccordiontwoEditing}
-                                  required
-                                  placeholder="Enter value"
-                                  value={prize.value}
-                                  onChange={(e) => {
-                                    const newValue = parseFloat(e.target.value); // Ensure it's a number
-
-                                    setPrizes((prevPrizes) => {
-                                      const updatedPrizes = [...prevPrizes];
-                                      if (updatedPrizes[index]) {
-                                        updatedPrizes[index].value = isNaN(
-                                          newValue
-                                        )
-                                          ? 0
-                                          : newValue; // Fallback to 0 if invalid input
-                                      }
-                                      return updatedPrizes;
-                                    });
-                                  }}
-                                  error={prizeErrors.includes(prize.rankEn)}
-                                  helperText={
-                                    prizeErrors.includes(prize.rankEn)
-                                      ? `${prize.rankEn} is required`
-                                      : ""
-                                  }
-                                  InputProps={{
-                                    sx: {
-                                      height: "40px",
-                                      "& input": {
-                                        height: "40px",
-                                        padding: "0 14px",
-                                      },
-                                    },
-                                  }}
-                                  sx={{
-                                    width: "100%",
-                                    borderRadius: "12px",
-                                    mb: 3,
-                                    backgroundColor: "white",
-                                  }}
-                                  inputProps={{
-                                    onKeyPress: (e) => {
-                                      if (!/[0-9]/.test(e.key)) {
-                                        e.preventDefault();
-                                      }
-                                    },
-                                  }}
-                                />
-                              </Box>
-                            ))
-                          : [
-                              {
-                                label:
-                                  language === "En" ? "Prize 1" : "الجوائز 1",
-                                value: "",
-                              },
-                            ].map((prize, index) => (
-                              <Box key={index}>
-                                <Box
-                                  sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    mb: 2,
-                                  }}
-                                >
-                                  <InputLabel
-                                    sx={{ color: "black", fontSize: "24px" }}
-                                  >
-                                    {prize.label}
-                                  </InputLabel>
-                                </Box>
-                                <TextField
-                                  disabled={!isAccordiontwoEditing}
-                                  required
-                                  placeholder="Enter value"
-                                  value={prize.value}
-                                  onChange={(e) => {
-                                    setPrizes((prevPrizes) => {
-                                      // Create a new array copy to maintain immutability
-                                      const updatedPrizes = [...prevPrizes];
-                                      // Update the value at the current index
-                                      updatedPrizes[index].value =
-                                        e.target.value;
-                                      return updatedPrizes;
-                                    });
-                                  }}
-                                  error={prizeErrors.includes(prize.label)}
-                                  helperText={
-                                    prizeErrors.includes(prize.label)
-                                      ? `${prize.label} is required`
-                                      : ""
-                                  }
-                                  InputProps={{
-                                    sx: {
-                                      height: "40px",
-                                      "& input": {
-                                        height: "40px",
-                                        padding: "0 14px",
-                                      },
-                                    },
-                                  }}
-                                  sx={{
-                                    width: "100%",
-                                    borderRadius: "12px",
-                                    mb: 3,
-                                    backgroundColor: "white",
-                                  }}
-                                  inputProps={{
-                                    onKeyPress: (e) => {
-                                      if (!/[0-9]/.test(e.key)) {
-                                        e.preventDefault();
-                                      }
-                                    },
-                                  }}
-                                />
-                              </Box>
-                            ))}
-
-                        <Stack
-                          direction="row"
-                          alignItems="flex-end"
+                        <Grid
                           sx={{
-                            display: "flex",
-                            alignItems: "flex-end",
-                            justifyContent: "flex-end",
-                            m: 3,
+                            width: "100%",
+                            backgroundColor: "#FBFBFB",
+                            p: 3,
+                            borderRadius: "12px",
+                            border: "1px solid #D5D8DD",
                           }}
+                          size={12}
                         >
-                          {isAccordiontwoEditing && (
+                          {Array.isArray(prizes) && prizes.length > 0
+                            ? prizes.map((prize, index) => (
+                                <Box key={index}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      mb: 2,
+                                    }}
+                                  >
+                                    <InputLabel
+                                      sx={{ color: "black", fontSize: "24px" }}
+                                    >
+                                      {language === "En"
+                                        ? prize.rankEn
+                                        : prize.rankAr}
+                                    </InputLabel>
+                                    {index >= 1 && (
+                                      <DeleteIcon
+                                        onClick={() =>
+                                          handleDeletePrize(index, prize.id)
+                                        }
+                                        sx={{
+                                          cursor: "pointer",
+                                          color: "#721F31",
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                  <TextField
+                                    disabled={!isAccordiontwoEditing}
+                                    required
+                                    placeholder="Enter value"
+                                    value={prize.value}
+                                    onChange={(e) => {
+                                      const newValue = parseFloat(
+                                        e.target.value
+                                      ); // Ensure it's a number
+
+                                      setPrizes((prevPrizes) => {
+                                        const updatedPrizes = [...prevPrizes];
+                                        if (updatedPrizes[index]) {
+                                          updatedPrizes[index].value = isNaN(
+                                            newValue
+                                          )
+                                            ? 0
+                                            : newValue; // Fallback to 0 if invalid input
+                                        }
+                                        return updatedPrizes;
+                                      });
+                                    }}
+                                    error={prizeErrors.includes(prize.rankEn)}
+                                    helperText={
+                                      prizeErrors.includes(prize.rankEn)
+                                        ? `${prize.rankEn} is required`
+                                        : ""
+                                    }
+                                    InputProps={{
+                                      sx: {
+                                        height: "40px",
+                                        "& input": {
+                                          height: "40px",
+                                          padding: "0 14px",
+                                        },
+                                      },
+                                    }}
+                                    sx={{
+                                      width: "100%",
+                                      borderRadius: "12px",
+                                      mb: 3,
+                                      backgroundColor: "white",
+                                    }}
+                                    inputProps={{
+                                      onKeyPress: (e) => {
+                                        if (!/[0-9]/.test(e.key)) {
+                                          e.preventDefault();
+                                        }
+                                      },
+                                    }}
+                                  />
+                                </Box>
+                              ))
+                            : [
+                                {
+                                  label:
+                                    language === "En" ? "Prize 1" : "الجوائز 1",
+                                  value: "",
+                                },
+                              ].map((prize, index) => (
+                                <Box key={index}>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      mb: 2,
+                                    }}
+                                  >
+                                    <InputLabel
+                                      sx={{ color: "black", fontSize: "24px" }}
+                                    >
+                                      {prize.label}
+                                    </InputLabel>
+                                  </Box>
+                                  <TextField
+                                    disabled={!isAccordiontwoEditing}
+                                    required
+                                    placeholder="Enter value"
+                                    value={prize.value}
+                                    onChange={(e) => {
+                                      setPrizes((prevPrizes) => {
+                                        // Create a new array copy to maintain immutability
+                                        const updatedPrizes = [...prevPrizes];
+                                        // Update the value at the current index
+                                        updatedPrizes[index].value =
+                                          e.target.value;
+                                        return updatedPrizes;
+                                      });
+                                    }}
+                                    error={prizeErrors.includes(prize.label)}
+                                    helperText={
+                                      prizeErrors.includes(prize.label)
+                                        ? `${prize.label} is required`
+                                        : ""
+                                    }
+                                    InputProps={{
+                                      sx: {
+                                        height: "40px",
+                                        "& input": {
+                                          height: "40px",
+                                          padding: "0 14px",
+                                        },
+                                      },
+                                    }}
+                                    sx={{
+                                      width: "100%",
+                                      borderRadius: "12px",
+                                      mb: 3,
+                                      backgroundColor: "white",
+                                    }}
+                                    inputProps={{
+                                      onKeyPress: (e) => {
+                                        if (!/[0-9]/.test(e.key)) {
+                                          e.preventDefault();
+                                        }
+                                      },
+                                    }}
+                                  />
+                                </Box>
+                              ))}
+
+                          <Stack
+                            direction="row"
+                            alignItems="flex-end"
+                            sx={{
+                              display: "flex",
+                              alignItems: "flex-end",
+                              justifyContent: "flex-end",
+                              m: 3,
+                            }}
+                          >
+                            {isAccordiontwoEditing && (
+                              <Button
+                                onClick={() => {
+                                  const newLabel = `Prize ${prizes.length - 2 + 2}`;
+                                  setPrizes((prevPrizes) => {
+                                    const currentPrizes = Array.isArray(
+                                      prevPrizes
+                                    )
+                                      ? prevPrizes
+                                      : [];
+                                    return [
+                                      ...currentPrizes,
+                                      {
+                                        rankEn: `Prize ${currentPrizes.length + 1}`,
+                                        value: "",
+                                      },
+                                    ];
+                                  });
+                                }}
+                                sx={{
+                                  backgroundColor: "#721F31",
+                                  minWidth: "45px",
+                                  minHeight: "30px",
+                                }}
+                              >
+                                <AddIcon sx={{ color: "white" }} />
+                              </Button>
+                            )}
+                          </Stack>
+                        </Grid>
+                        {isAccordiontwoEditing && (
+                          <Stack
+                            direction="row"
+                            spacing={2}
+                            sx={{
+                              pt: 2,
+                              justifyContent: "center",
+                              width: "100%",
+                            }}
+                          >
                             <Button
                               onClick={() => {
-                                const newLabel = `Prize ${prizes.length - 2 + 2}`;
-                                setPrizes((prevPrizes) => {
-                                  const currentPrizes = Array.isArray(
-                                    prevPrizes
-                                  )
-                                    ? prevPrizes
-                                    : [];
-                                  return [
-                                    ...currentPrizes,
-                                    {
-                                      rankEn: `Prize ${currentPrizes.length + 1}`,
-                                      value: "",
-                                    },
-                                  ];
-                                });
+                                setIsAccordionTwoEditing(false);
+                                setPrizeErrors([]);
+                                setExpanded(false);
                               }}
                               sx={{
-                                backgroundColor: "#721F31",
-                                minWidth: "45px",
-                                minHeight: "30px",
+                                backgroundColor: "#D9D9D9",
+                                color: "black",
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                width: "150px",
                               }}
                             >
-                              <AddIcon sx={{ color: "white" }} />
+                              Cancel
                             </Button>
-                          )}
-                        </Stack>
-                      </Grid>
-                      {isAccordiontwoEditing && (
-                        <Stack
-                          direction="row"
-                          spacing={2}
-                          sx={{
-                            pt: 2,
-                            justifyContent: "center",
-                            width: "100%",
-                          }}
-                        >
-                          <Button
-                            onClick={() => {
-                              setIsAccordionTwoEditing(false);
-                              setPrizeErrors([]);
-                              setExpanded(false);
-                            }}
-                            sx={{
-                              backgroundColor: "#D9D9D9",
-                              color: "black",
-                              textTransform: "none",
-                              borderRadius: "8px",
-                              width: "150px",
-                            }}
-                          >
-                            cancel
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              console.log("Save button clicked");
-                              console.log("Current prizes state:", prizes);
+                            <Button
+                              onClick={() => {
+                                console.log("Save button clicked");
+                                console.log("Current prizes state:", prizes);
 
-                              const missingFields = prizes
-                                .map((prize) => {
-                                  const isMissing = prize.value === 0;
-                                  if (isMissing) {
-                                    console.log(
-                                      `Prize with rank "${prize.rankEn}" has a value of 0`
-                                    );
-                                  }
-                                  return isMissing ? prize.rankEn : null;
-                                })
-                                .filter((rankEn) => rankEn !== null);
+                                // Check only the first prize (index 0)
+                                const firstPrize = prizes[0];
+                                const isFirstPrizeMissing =
+                                  !firstPrize ||
+                                  firstPrize.value === 0 ||
+                                  firstPrize.value === "";
 
-                              if (missingFields.length > 0) {
+                                if (isFirstPrizeMissing) {
+                                  console.log(
+                                    `Prize with rank "${firstPrize?.rankEn || "Prize 1"}" is missing`
+                                  );
+                                  setPrizeErrors([
+                                    firstPrize?.rankEn || "Prize 1",
+                                  ]);
+                                  return;
+                                }
+
                                 console.log(
-                                  "Missing fields detected:",
-                                  missingFields
+                                  "First prize is valid, proceeding to save prizes..."
                                 );
-                                setPrizeErrors(missingFields);
-                                return;
-                              }
-
-                              console.log(
-                                "No missing fields, proceeding to save prizes..."
-                              );
-                              savePrizes();
-                            }}
-                            sx={{
-                              backgroundColor: " #721F31",
-                              color: "white",
-                              textTransform: "none",
-                              borderRadius: "8px",
-                              width: "300px",
-                            }}
-                          >
-                            Save
-                          </Button>
-                        </Stack>
-                      )}
-                    </Grid>
+                                savePrizes();
+                              }}
+                              sx={{
+                                backgroundColor: " #721F31",
+                                color: "white",
+                                textTransform: "none",
+                                borderRadius: "8px",
+                                width: "300px",
+                              }}
+                            >
+                              Save
+                            </Button>
+                          </Stack>
+                        )}
+                      </Grid>
+                    )}
                   </AccordionDetails>
                 </Accordion>
                 <Accordion
@@ -2550,8 +2617,20 @@ export default function Award() {
                             />
                           </Tooltip>
                         </Stack>
-                        {timelineEntries.filter((entry) => entry.type === "002")
-                          .length === 0 ? (
+                        {loadingMilestones ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              height: "200px",
+                            }}
+                          >
+                            <CircularProgress />
+                          </Box>
+                        ) : timelineEntries.filter(
+                            (entry) => entry.type === "002"
+                          ).length === 0 ? (
                           <Typography
                             variant="body2"
                             sx={{
@@ -2758,8 +2837,20 @@ export default function Award() {
                             />
                           </Tooltip>
                         </Stack>
-                        {timelineEntries.filter((entry) => entry.type === "001")
-                          .length === 0 ? (
+                        {loadingEvents ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              height: "200px",
+                            }}
+                          >
+                            <CircularProgress />
+                          </Box>
+                        ) : timelineEntries.filter(
+                            (entry) => entry.type === "001"
+                          ).length === 0 ? (
                           <Typography
                             variant="body2"
                             sx={{
@@ -2833,7 +2924,7 @@ export default function Award() {
                                           "001",
                                           language === "En"
                                             ? "titleEn"
-                                            : "titleAr", // Pass correct field name
+                                            : "titleAr",
                                           e.target.value
                                         )
                                       }
@@ -2900,7 +2991,7 @@ export default function Award() {
                                           "001",
                                           language === "En"
                                             ? "NoteEn"
-                                            : "NoteAr", // Pass correct field name
+                                            : "NoteAr",
                                           e.target.value
                                         )
                                       }
@@ -3080,77 +3171,114 @@ export default function Award() {
                           borderRadius: "12px",
                           border: "1px solid #D5D8DD",
                         }}
-                        size={12}
+                        item
+                        xs={12}
                       >
-                        <Box
-                          sx={{
-                            pb: 2,
-                            display: "center",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            color: "red",
-                          }}
-                        ></Box>
-                        {Judgeterms?.map((term, index) => {
-                          const termValue =
-                            language === "Ar" ? term.ruleAr : term.ruleEn;
-
-                          return (
-                            <Box
-                              key={index}
+                        {judgeLoading ? (
+                          <CircularProgress color="primary" />
+                        ) : !Judgeterms || Judgeterms.length === 0 ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              mb: 2,
+                            }}
+                          >
+                            <InputLabel
                               sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                mb: 2,
+                                color: "black",
+                                fontSize: "24px",
+                                minWidth: "30px",
                               }}
                             >
-                              <InputLabel
+                              1
+                            </InputLabel>
+                            <TextField
+                              disabled={!isAccordionFourEditing}
+                              error={!!judgeTermseErrors[0]}
+                              helperText={judgeTermseErrors[0]}
+                              value=""
+                              onChange={(e) =>
+                                handleTermChange(0, e.target.value)
+                              }
+                              placeholder="Terms And Conditions"
+                              fullWidth
+                              sx={{
+                                backgroundColor: "white",
+                                borderRadius: "12px",
+                              }}
+                              InputProps={{
+                                sx: {
+                                  height: "40px",
+                                  "& input": {
+                                    height: "40px",
+                                    padding: "0 14px",
+                                  },
+                                },
+                              }}
+                            />
+                          </Box>
+                        ) : (
+                          Judgeterms.map((term, index) => {
+                            const termValue =
+                              language === "Ar" ? term.ruleAr : term.ruleEn;
+                            return (
+                              <Box
+                                key={index}
                                 sx={{
-                                  color: "black",
-                                  fontSize: "24px",
-                                  minWidth: "30px",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  mb: 2,
                                 }}
                               >
-                                {index + 1}
-                              </InputLabel>
-                              <TextField
-                                disabled={!isAccordionFourEditing}
-                                error={!!judgeTermseErrors[index]}
-                                helperText={judgeTermseErrors[index]}
-                                value={termValue || ""}
-                                onChange={(e) =>
-                                  handleTermChange(index, e.target.value)
-                                }
-                                placeholder="Terms And Conditions"
-                                fullWidth
-                                sx={{
-                                  backgroundColor: "white",
-                                  borderRadius: "12px",
-                                }}
-                                InputProps={{
-                                  sx: {
-                                    height: "40px",
-                                    "& input": {
-                                      height: "40px",
-                                      padding: "0 14px",
-                                    },
-                                  },
-                                }}
-                              />
-                              {index !== 0 && (
-                                <IconButton
-                                  aria-label="delete"
-                                  onClick={() =>
-                                    handleDeleteTerm(index, term.id)
-                                  }
-                                  sx={{ marginLeft: 1, color: "#721F31" }}
+                                <InputLabel
+                                  sx={{
+                                    color: "black",
+                                    fontSize: "24px",
+                                    minWidth: "30px",
+                                  }}
                                 >
-                                  <DeleteIcon />
-                                </IconButton>
-                              )}
-                            </Box>
-                          );
-                        })}
+                                  {index + 1}
+                                </InputLabel>
+                                <TextField
+                                  disabled={!isAccordionFourEditing}
+                                  error={!!judgeTermseErrors[index]}
+                                  helperText={judgeTermseErrors[index]}
+                                  value={termValue || ""}
+                                  onChange={(e) =>
+                                    handleTermChange(index, e.target.value)
+                                  }
+                                  placeholder="Terms And Conditions"
+                                  fullWidth
+                                  sx={{
+                                    backgroundColor: "white",
+                                    borderRadius: "12px",
+                                  }}
+                                  InputProps={{
+                                    sx: {
+                                      height: "40px",
+                                      "& input": {
+                                        height: "40px",
+                                        padding: "0 14px",
+                                      },
+                                    },
+                                  }}
+                                />
+                                {index !== 0 && (
+                                  <IconButton
+                                    aria-label="delete"
+                                    onClick={() =>
+                                      handleDeleteTerm(index, term.id)
+                                    }
+                                    sx={{ marginLeft: 1, color: "#721F31" }}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            );
+                          })
+                        )}
 
                         <Stack
                           direction="row"
@@ -3176,6 +3304,7 @@ export default function Award() {
                           )}
                         </Stack>
                       </Grid>
+
                       {isAccordionFourEditing && (
                         <Stack
                           direction="row"
@@ -3202,12 +3331,12 @@ export default function Award() {
                               width: "150px",
                             }}
                           >
-                            cancel
+                            Cancel
                           </Button>
                           <Button
                             onClick={handleSaveJudgeTerms}
                             sx={{
-                              backgroundColor: " #721F31",
+                              backgroundColor: "#721F31",
                               color: "white",
                               textTransform: "none",
                               borderRadius: "8px",
@@ -3314,8 +3443,10 @@ export default function Award() {
                           borderRadius: "12px",
                           border: "1px solid #D5D8DD",
                         }}
-                        size={12}
+                        item
+                        xs={12}
                       >
+                        {/* Applicant Type Section (unchanged) */}
                         <Stack
                           direction="row"
                           alignItems="center"
@@ -3334,7 +3465,7 @@ export default function Award() {
                                 mb: 2,
                               }}
                             >
-                              Applicant Type{" "}
+                              Applicant Type
                             </InputLabel>
                             <FormControl
                               sx={{
@@ -3383,7 +3514,6 @@ export default function Award() {
                               >
                                 Number of Team
                               </InputLabel>
-
                               <Box
                                 sx={{
                                   display: "flex",
@@ -3478,11 +3608,55 @@ export default function Award() {
                             </Box>
                           )}
                         </Stack>
-                        <Box sx={{ pb: 2 }}> {getLabelWithLanguage("")}</Box>
+                        <Box sx={{ pb: 2 }}>{getLabelWithLanguage("")}</Box>
 
-                        {applicantSettings.applicantRules?.map(
-                          (term, index) => {
-                            return (
+                        {/* Applicant Rules Section - Modified to show at least one field */}
+                        {!applicantSettings.applicantRules ||
+                        applicantSettings.applicantRules.length === 0 ? (
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              mb: 2,
+                            }}
+                          >
+                            <InputLabel
+                              sx={{
+                                color: "black",
+                                fontSize: "24px",
+                                minWidth: "30px",
+                              }}
+                            >
+                              1
+                            </InputLabel>
+                            <TextField
+                              disabled={!isAccordionFiveEditing}
+                              error={!!applicantTermseErrors[0]}
+                              helperText={applicantTermseErrors[0]}
+                              value=""
+                              onChange={(e) =>
+                                handleApplicantTermChange(0, e.target.value)
+                              }
+                              placeholder="Terms And Conditions"
+                              fullWidth
+                              sx={{
+                                backgroundColor: "white",
+                                borderRadius: "12px",
+                              }}
+                              InputProps={{
+                                sx: {
+                                  height: "40px",
+                                  "& input": {
+                                    height: "40px",
+                                    padding: "0 14px",
+                                  },
+                                },
+                              }}
+                            />
+                          </Box>
+                        ) : (
+                          applicantSettings.applicantRules?.map(
+                            (term, index) => (
                               <Box
                                 key={index}
                                 sx={{
@@ -3543,8 +3717,8 @@ export default function Award() {
                                   </IconButton>
                                 )}
                               </Box>
-                            );
-                          }
+                            )
+                          )
                         )}
 
                         <Stack
@@ -3571,6 +3745,7 @@ export default function Award() {
                           )}
                         </Stack>
                       </Grid>
+
                       {isAccordionFiveEditing && (
                         <Stack
                           direction="row"
@@ -3597,12 +3772,12 @@ export default function Award() {
                               width: "150px",
                             }}
                           >
-                            cancel
+                            Cancel
                           </Button>
                           <Button
                             onClick={handleSaveApplicantTerms}
                             sx={{
-                              backgroundColor: " #721F31",
+                              backgroundColor: "#721F31",
                               color: "white",
                               textTransform: "none",
                               borderRadius: "8px",
