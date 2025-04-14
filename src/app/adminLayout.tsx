@@ -9,6 +9,7 @@ import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
 import Header from "./components/header";
+import { useRouter } from "next/navigation";
 
 const drawerWidth = 240;
 
@@ -20,6 +21,7 @@ interface Props {
 export default function AdminLayout({ window, children }: Props) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isClosing, setIsClosing] = React.useState(false);
+  const router = useRouter();
 
   const handleDrawerClose = () => {
     setIsClosing(true);
@@ -35,6 +37,10 @@ export default function AdminLayout({ window, children }: Props) {
       setMobileOpen(!mobileOpen);
     }
   };
+   const handleNavigation = (text: string) => {
+     const path = `/${text.toLowerCase()}`;
+     router.push(path);
+   };
 
   const drawer = (
     <div>
@@ -43,6 +49,7 @@ export default function AdminLayout({ window, children }: Props) {
         {["Dashboard", "Award", "Judges", "Website"].map((text, index) => (
           <ListItem key={text} disablePadding>
             <ListItemButton
+              onClick={() => handleNavigation(text)}
               sx={{
                 display: "flex",
                 justifyContent: "center",

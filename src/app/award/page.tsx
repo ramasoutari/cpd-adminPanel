@@ -28,6 +28,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -80,10 +82,12 @@ export default function Award() {
   const [confirmDialogConfig, setConfirmDialogConfig] = useState<{
     title: string;
     message: string;
+    type: string;
     onConfirm: () => void;
   }>({
     title: "Confirm",
     message: "",
+    type: "",
     onConfirm: () => {},
   });
   const [expanded, setExpanded] = useState<string | false>(false);
@@ -94,6 +98,8 @@ export default function Award() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
   const [dialogTitle, setDialogTitle] = useState("");
+  const [type, setType] = useState("");
+
   const [judgeTermseErrors, setJudgeTermsErrors] = useState<string[]>([]);
   const [isButtonDisabled, setIsButtonDisabled] = useState(true);
   const [awardData, setAwardData] = useState({
@@ -187,10 +193,13 @@ export default function Award() {
       if (noTerms) {
         setDialogOpen(true);
         setDialogTitle("Error");
+        setType("error");
         setDialogMessage("At least one applicant term is required");
       } else if (teamValidationErrors.length > 0) {
         setDialogOpen(true);
         setDialogTitle("Error");
+        setType("error");
+
         setDialogMessage(teamValidationErrors.join("\n"));
       }
       return;
@@ -223,6 +232,8 @@ export default function Award() {
 
       setDialogOpen(true);
       setDialogTitle("Success");
+      setType("Success");
+
       setDialogMessage("Applicant terms saved successfully!");
       setApplicantSettings(response.data.data);
       setIsAccordionFiveEditing(false);
@@ -230,6 +241,8 @@ export default function Award() {
     } catch (error: any) {
       setDialogOpen(true);
       setDialogTitle("Error");
+      setType("Error");
+
       setDialogMessage(
         error.response?.data?.message ||
           "An error occurred while saving applicant terms."
@@ -298,15 +311,18 @@ export default function Award() {
 
       setAward(response.data.data);
       setDialogTitle("Success");
+      setType("success");
       setDialogMessage("Award saved successfully!");
       setExpanded(false);
     } catch (error: any) {
       console.error("Error while saving award:", error);
       setDialogTitle("Error");
+      setType("error");
       setDialogMessage(
         error.response?.data?.message ||
           "An error occurred while saving the award."
       );
+      setIsAccordionOneEditing(true);
     } finally {
       setDialogOpen(true);
     }
@@ -321,7 +337,9 @@ export default function Award() {
 
     timelineEntries.forEach((entry, index) => {
       errors[index] = {};
+
       if (entry.type === "001") {
+        // Event
         const title =
           language === "En"
             ? (entry.titleEn || "").trim()
@@ -330,31 +348,35 @@ export default function Award() {
           language === "En"
             ? (entry.NoteEn || "").trim()
             : (entry.NoteAr || "").trim();
-        if (note === "") {
-          errors[index].note = "note is required";
+
+        if (!title) {
+          errors[index].title = "Event name is required";
           isValid = false;
         }
-        if (title === "") {
-          errors[index].title = "Title is required";
+
+        if (!note) {
+          errors[index].note = "Note is required";
           isValid = false;
         }
-        const date = dayjs(entry.date);
-        if (!date.isValid()) {
+
+        if (!dayjs(entry.date).isValid()) {
           errors[index].date = "Valid date is required";
           isValid = false;
         }
       } else if (entry.type === "002") {
+        // Milestone
         if (!entry.milestoneId) {
-          errors[index].milestoneId = "Milestone Title is required";
+          errors[index].milestoneId = "Milestone title is required";
           isValid = false;
         }
-        const date = dayjs(entry.date);
-        if (!date.isValid()) {
+
+        if (!dayjs(entry.date).isValid()) {
           errors[index].date = "Valid date is required";
           isValid = false;
         }
       }
     });
+
     setTimelineErrors(errors);
     return isValid;
   };
@@ -383,6 +405,7 @@ export default function Award() {
       );
       setDialogOpen(true);
       setDialogTitle("Success");
+      setType("success");
       setDialogMessage("prizes saved successfully!");
       setPrizeErrors([]);
       setIsAccordionTwoEditing(false);
@@ -391,6 +414,7 @@ export default function Award() {
       console.error("Error saving award:", error);
       setDialogOpen(true);
       setDialogTitle("Error");
+      setType("error");
       setDialogMessage(
         error.response?.data?.message ||
           "An error occurred while saving the prizes."
@@ -461,6 +485,7 @@ export default function Award() {
         );
         setDialogOpen(true);
         setDialogTitle("Success");
+        setType("success");
         setDialogMessage("Timeline saved successfully!");
         fetchAwardMilestones();
         fetchAwardEvents();
@@ -469,6 +494,7 @@ export default function Award() {
       } catch (error: any) {
         setDialogOpen(true);
         setDialogTitle("Error");
+        setType("error");
         setDialogMessage(
           error.response?.data?.message ||
             "An error occurred while saving the timeline."
@@ -512,6 +538,7 @@ export default function Award() {
   const showErrorDialog = (message: string) => {
     setDialogOpen(true);
     setDialogTitle("Error");
+    setType("error");
     setDialogMessage(message);
   };
   const handleSaveJudgeTerms = async () => {
@@ -542,11 +569,13 @@ export default function Award() {
         setIsAccordionFourEditing(false);
         setDialogOpen(true);
         setDialogTitle("Success");
+        setType("success");
         setDialogMessage("Judge terms saved successfully!");
         setExpanded(false);
       } catch (error: any) {
         setDialogOpen(true);
         setDialogTitle("Error");
+        setType("error");
         setDialogMessage(
           error.response?.data?.message ||
             "An error occurred whilesaving judge terms"
@@ -579,6 +608,7 @@ export default function Award() {
     if (!allowedTypes.includes(file.type)) {
       setDialogOpen(true);
       setDialogTitle("Error");
+      setType("error");
       setDialogMessage(
         "Unsupported file type. Please upload png, jpg, jpeg, bmp, or heic."
       );
@@ -587,6 +617,7 @@ export default function Award() {
     if (file.size > maxSize) {
       setDialogOpen(true);
       setDialogTitle("Error");
+      setType("error");
       setDialogMessage("File is too large. Maximum allowed size is 8 MB.");
       return;
     }
@@ -621,6 +652,7 @@ export default function Award() {
     } catch (error: any) {
       setDialogOpen(true);
       setDialogTitle("Error");
+      setType("error");
       setDialogMessage(
         error.response?.data?.message ||
           "An error occurred while uploading the logo."
@@ -679,30 +711,37 @@ export default function Award() {
   };
 
   const deleteEntry = async (index: number) => {
-    const entry = timelineEntries[index];
-
-    if (!entry.id) {
-      const newEntries = [...timelineEntries];
-      newEntries.splice(index, 1);
-      setTimelineEntries(newEntries);
-      return;
-    }
-    let url = "";
-    if (entry.type === "001") {
-      url = `http://98.83.87.183:3001/api/awards/event/${entry.id}`;
-    } else if (entry.type === "002") {
-      url = `http://98.83.87.183:3001/api/awards/milestone/${entry.id}`;
-    }
     try {
-      if (url) {
-        await axios.delete(url);
+      const entry = timelineEntries[index];
+
+      // Early return if index is invalid
+      if (index < 0 || index >= timelineEntries.length) return;
+
+      if (entry.id) {
+        let url = "";
+        if (entry.type === "001") {
+          url = `http://98.83.87.183:3001/api/awards/event/${entry.id}`;
+        } else if (entry.type === "002") {
+          url = `http://98.83.87.183:3001/api/awards/milestone/${entry.id}`;
+        }
+
+        if (url) {
+          await axios.delete(url);
+        }
       }
 
-      const newEntries = [...timelineEntries];
-      newEntries.splice(index, 1);
-      setTimelineEntries(newEntries);
+      // Update state immutably
+      setTimelineEntries((prev) => prev.filter((_, i) => i !== index));
+
+      // Clean up any errors for this index
+      setTimelineErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[index];
+        return newErrors;
+      });
     } catch (error) {
       console.error("Error removing entry:", error);
+      // Consider adding user feedback here
     }
   };
   const handleDeleteEntry = (index: number) => {
@@ -714,67 +753,41 @@ export default function Award() {
   };
 
   const handleChangeEntry = (
-    filteredIndex: number,
+    originalIndex: number,
     type: string,
     key: string,
     value: any
   ) => {
-    const fullIndex = timelineEntries.findIndex(
-      (entry, idx) =>
-        entry.type === type &&
-        timelineEntries.filter((e) => e.type === type).indexOf(entry) ===
-          filteredIndex
+    setTimelineEntries((prevEntries) =>
+      prevEntries.map((entry, index) => {
+        if (index === originalIndex) {
+          const updatedEntry = { ...entry };
+
+          // Handle special cases
+          if (key === "titleEn" || key === "titleAr") {
+            updatedEntry[key] = value;
+            updatedEntry.title = value; // Update generic title field
+          } else if (key === "NoteEn" || key === "NoteAr") {
+            updatedEntry[key] = value;
+            updatedEntry.note = value; // Update generic note field
+          } else {
+            updatedEntry[key] = value;
+          }
+
+          return updatedEntry;
+        }
+        return entry;
+      })
     );
 
-    if (fullIndex !== -1) {
-      const newEntries = [...timelineEntries];
-
-      if (key === "milestoneId") {
-        newEntries[fullIndex].milestoneId = value;
-        // Clear milestone error
-        setTimelineErrors((prev) => ({
-          ...prev,
-          [fullIndex]: {
-            ...prev[fullIndex],
-            milestoneId: undefined,
-          },
-        }));
-      } else if (key === "title") {
-        newEntries[fullIndex].title = value;
-        if (language === "En") {
-          newEntries[fullIndex].titleEn = value;
-        } else {
-          newEntries[fullIndex].titleAr = value;
-        }
-        // Clear title error
-        setTimelineErrors((prev) => ({
-          ...prev,
-          [fullIndex]: {
-            ...prev[fullIndex],
-            title: undefined,
-          },
-        }));
-      } else if (key === "note") {
-        newEntries[fullIndex].note = value;
-        if (language === "En") {
-          newEntries[fullIndex].NoteEn = value;
-        } else {
-          newEntries[fullIndex].NoteAr = value;
-        }
-        // Clear note error
-        setTimelineErrors((prev) => ({
-          ...prev,
-          [fullIndex]: {
-            ...prev[fullIndex],
-            note: undefined,
-          },
-        }));
-      } else {
-        newEntries[fullIndex][key] = value;
-      }
-
-      setTimelineEntries(newEntries);
-    }
+    // Clear any errors for this field
+    setTimelineErrors((prev) => ({
+      ...prev,
+      [originalIndex]: {
+        ...prev[originalIndex],
+        [key.replace(/En|Ar$/, "")]: undefined, // Clears both language variants
+      },
+    }));
   };
 
   const deleteJudgeTerm = async (index: number, id: string) => {
@@ -886,8 +899,18 @@ export default function Award() {
     setIsAccordionFiveEditing(true);
   };
   const getLabelWithLanguage = (label: string) => {
-    return language === "Ar" ? `${label} (Arabic)` : `${label} (English)`;
+    const languageLabel = language === "Ar" ? " (Arabic)" : " (English)";
+    return (
+      <>
+        {label}
+        <span style={{ fontSize:"18px",color: "#FF4242" }}>
+          {languageLabel}
+        </span>
+      </>
+    );
   };
+
+
   const validateFields = (data: any) => {
     const errors: any = {};
     if (
@@ -899,8 +922,6 @@ export default function Award() {
     if (!data.organizingHost?.id) {
       errors.organizingHost = "Organizing Host is required";
     }
-
-    // Targeted Audience validation - simplified check
     if (!data.targetedAudience?.id) {
       errors.targetedAudience = "Targeted Audience is required";
     }
@@ -1249,6 +1270,7 @@ export default function Award() {
         );
         setDialogOpen(true);
         setDialogTitle("Success");
+        setType("success");
         setDialogMessage("prize deleted successfully!");
       } else {
         console.error("Failed to delete prize");
@@ -1281,7 +1303,14 @@ export default function Award() {
     <AdminLayout>
       <Dialog open={confirmDialogOpen} onClose={handleCancelDelete}>
         <DialogTitle>{confirmDialogConfig.title}</DialogTitle>
-        <DialogContent>{confirmDialogConfig.message}</DialogContent>
+        <DialogContent sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {confirmDialogConfig.type === "success" ? (
+            <CheckCircleIcon sx={{ color: "green" }} />
+          ) : confirmDialogConfig.type === "error" ? (
+            <ErrorIcon sx={{ color: "red" }} />
+          ) : null}
+          {confirmDialogConfig.message}
+        </DialogContent>
         <DialogActions>
           <Button onClick={handleCancelDelete} color="primary">
             Cancel
@@ -1297,12 +1326,14 @@ export default function Award() {
           </Button>
         </DialogActions>
       </Dialog>
+
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <ApiDialog
           open={dialogOpen}
           title={dialogTitle}
           message={dialogMessage}
           onClose={handleCloseDialog}
+          variant={type}
         />
         <Box sx={{ width: "92%" }}>
           <Stack
@@ -1801,7 +1832,7 @@ export default function Award() {
                           disabled={!isAccordionOneEditing}
                           error={fieldErrors.aboutAward}
                           helperText={
-                            fieldErrors.awardName
+                            fieldErrors.aboutAward
                               ? "About the award is required"
                               : ""
                           }
@@ -1845,6 +1876,20 @@ export default function Award() {
                               categoriesIds: false,
                               aboutAward: false,
                             });
+                            setAwardData({
+                              nameEn: "",
+                              nameAr: "",
+                              objectiveEn: "",
+                              objectiveAr: "",
+                              logoEn: "",
+                              logoAr: "",
+                              organizingHost: "",
+                              targetedAudience: "",
+                              categoriesIds: [],
+                              aboutAward: "",
+                              logo: null,
+                            });
+                            setPreviewUrl(null);
                             setExpanded(false);
                           }}
                           sx={{
@@ -2317,7 +2362,6 @@ export default function Award() {
                     >
                       <Grid
                         size={12}
-                        sm={6}
                         sx={{
                           backgroundColor: "#FBFBFB",
                           pt: 5,
@@ -2352,9 +2396,13 @@ export default function Award() {
                           </Typography>
                         ) : (
                           timelineEntries
-                            .filter((entry) => entry.type === "002")
-                            .map((entry, index) => (
-                              <React.Fragment key={index}>
+                            .map((entry, originalIndex) => ({
+                              entry,
+                              originalIndex,
+                            }))
+                            .filter(({ entry }) => entry.type === "002")
+                            .map(({ entry, originalIndex }) => (
+                              <React.Fragment key={originalIndex}>
                                 <Grid
                                   container
                                   direction="column"
@@ -2371,7 +2419,9 @@ export default function Award() {
                                 >
                                   <Grid size={4} sx={{ mb: 3 }}>
                                     <IconButton
-                                      onClick={() => handleDeleteEntry(index)}
+                                      onClick={() =>
+                                        handleDeleteEntry(originalIndex)
+                                      }
                                       sx={{
                                         position: "absolute",
                                         top: 8,
@@ -2388,7 +2438,8 @@ export default function Award() {
                                     <FormControl
                                       fullWidth
                                       error={
-                                        !!timelineErrors[index]?.milestoneId
+                                        !!timelineErrors[originalIndex]
+                                          ?.milestoneId
                                       }
                                     >
                                       <Select
@@ -2396,7 +2447,7 @@ export default function Award() {
                                         value={entry.milestoneId}
                                         onChange={(e) =>
                                           handleChangeEntry(
-                                            index,
+                                            originalIndex,
                                             "002",
                                             "milestoneId",
                                             e.target.value
@@ -2425,13 +2476,17 @@ export default function Award() {
                                         ))}
                                       </Select>
 
-                                      {timelineErrors[index]?.milestoneId && (
+                                      {timelineErrors[originalIndex]
+                                        ?.milestoneId && (
                                         <Typography
                                           variant="caption"
                                           color="error"
                                           sx={{ ml: 1 }}
                                         >
-                                          {timelineErrors[index]?.milestoneId}
+                                          {
+                                            timelineErrors[originalIndex]
+                                              ?.milestoneId
+                                          }
                                         </Typography>
                                       )}
                                     </FormControl>
@@ -2439,6 +2494,7 @@ export default function Award() {
                                   <Grid size={4} sx={{ mb: 3 }}>
                                     <InputLabel sx={{ pl: 1 }}>Date</InputLabel>
                                     <DesktopDatePicker
+                                      minDate={dayjs()}
                                       disabled={!isAccordionThreeEditing}
                                       value={
                                         dayjs(entry.date).isValid()
@@ -2447,7 +2503,7 @@ export default function Award() {
                                       }
                                       onChange={(newDate) =>
                                         handleChangeEntry(
-                                          index,
+                                          originalIndex,
                                           "002",
                                           "date",
                                           newDate
@@ -2456,9 +2512,11 @@ export default function Award() {
                                       slotProps={{
                                         textField: {
                                           fullWidth: true,
-                                          error: !!timelineErrors[index]?.date,
+                                          error:
+                                            !!timelineErrors[originalIndex]
+                                              ?.date,
                                           helperText:
-                                            timelineErrors[index]?.date,
+                                            timelineErrors[originalIndex]?.date,
                                           sx: {
                                             borderRadius: "12px",
                                             backgroundColor: "white",
@@ -2497,7 +2555,6 @@ export default function Award() {
                       </Grid>
                       <Grid
                         size={12}
-                        sm={6}
                         sx={{
                           backgroundColor: "#FBFBFB",
                           pt: 5,
@@ -2532,9 +2589,13 @@ export default function Award() {
                           </Typography>
                         ) : (
                           timelineEntries
-                            .filter((entry) => entry.type === "001")
-                            .map((entry, index) => (
-                              <React.Fragment key={index}>
+                            .map((entry, originalIndex) => ({
+                              entry,
+                              originalIndex,
+                            }))
+                            .filter(({ entry }) => entry.type === "001")
+                            .map(({ entry, originalIndex }) => (
+                              <React.Fragment key={originalIndex}>
                                 <Grid
                                   container
                                   direction="column"
@@ -2551,7 +2612,9 @@ export default function Award() {
                                 >
                                   <Grid size={4} sx={{ mb: 3 }}>
                                     <IconButton
-                                      onClick={() => handleDeleteEntry(index)}
+                                      onClick={() =>
+                                        handleDeleteEntry(originalIndex)
+                                      }
                                       sx={{
                                         position: "absolute",
                                         top: 8,
@@ -2562,12 +2625,16 @@ export default function Award() {
                                       <DeleteIcon />
                                     </IconButton>
                                     <InputLabel sx={{ pl: 1 }}>
-                                      Event Name
+                                      {getLabelWithLanguage("Event Name")}
                                     </InputLabel>
                                     <TextField
                                       disabled={!isAccordionThreeEditing}
-                                      error={!!timelineErrors[index]?.title}
-                                      helperText={timelineErrors[index]?.title}
+                                      error={
+                                        !!timelineErrors[originalIndex]?.title
+                                      }
+                                      helperText={
+                                        timelineErrors[originalIndex]?.title
+                                      }
                                       value={
                                         language === "En"
                                           ? entry.titleEn
@@ -2575,9 +2642,11 @@ export default function Award() {
                                       }
                                       onChange={(e) =>
                                         handleChangeEntry(
-                                          index,
+                                          originalIndex,
                                           "001",
-                                          "title",
+                                          language === "En"
+                                            ? "titleEn"
+                                            : "titleAr", // Pass correct field name
                                           e.target.value
                                         )
                                       }
@@ -2592,6 +2661,7 @@ export default function Award() {
                                   <Grid size={4} sx={{ mb: 3 }}>
                                     <InputLabel sx={{ pl: 1 }}>Date</InputLabel>
                                     <DesktopDatePicker
+                                      minDate={dayjs()}
                                       disabled={!isAccordionThreeEditing}
                                       value={
                                         dayjs(entry.date).isValid()
@@ -2600,7 +2670,7 @@ export default function Award() {
                                       }
                                       onChange={(newDate) =>
                                         handleChangeEntry(
-                                          index,
+                                          originalIndex,
                                           "001",
                                           "date",
                                           newDate
@@ -2609,9 +2679,11 @@ export default function Award() {
                                       slotProps={{
                                         textField: {
                                           fullWidth: true,
-                                          error: !!timelineErrors[index]?.date,
+                                          error:
+                                            !!timelineErrors[originalIndex]
+                                              ?.date,
                                           helperText:
-                                            timelineErrors[index]?.date,
+                                            timelineErrors[originalIndex]?.date,
                                           sx: {
                                             borderRadius: "12px",
                                             backgroundColor: "white",
@@ -2624,8 +2696,12 @@ export default function Award() {
                                     <InputLabel sx={{ pl: 1 }}>Note</InputLabel>
                                     <TextField
                                       disabled={!isAccordionThreeEditing}
-                                      error={!!timelineErrors[index]?.note}
-                                      helperText={timelineErrors[index]?.note}
+                                      error={
+                                        !!timelineErrors[originalIndex]?.note
+                                      }
+                                      helperText={
+                                        timelineErrors[originalIndex]?.note
+                                      }
                                       value={
                                         language === "En"
                                           ? entry.NoteEn
@@ -2633,9 +2709,11 @@ export default function Award() {
                                       }
                                       onChange={(e) =>
                                         handleChangeEntry(
-                                          index,
+                                          originalIndex,
                                           "001",
-                                          "note",
+                                          language === "En"
+                                            ? "NoteEn"
+                                            : "NoteAr", // Pass correct field name
                                           e.target.value
                                         )
                                       }
