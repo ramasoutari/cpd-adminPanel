@@ -43,10 +43,11 @@ import AddIcon from "@mui/icons-material/Add";
 import { DesktopDatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import AdminLayout from "../adminLayout";
 import RatingCriteria from "./rating-criteria";
-import axios from "axios";
 import ApiDialog from "../components/dialog";
 import dayjs from "dayjs";
 import { RatingCriteriaProvider } from "../context/RatingCriteriaContext";
+import axiosInstance from "../utils/axios";
+import { API_STORAGE_URL } from "../constants";
 export default function Award() {
   const [value, setValue] = useState(0);
   const [awardBasicInfoLoading, setAwardBasicInfoLoading] = useState(false);
@@ -230,8 +231,8 @@ export default function Award() {
     };
 
     try {
-      const response = await axios.post(
-        "http://98.83.87.183:3001/api/awards/saveApplicantRules",
+      const response = await axiosInstance.post(
+        "awards/saveApplicantRules",
         requestData,
         {
           headers: {
@@ -300,8 +301,8 @@ export default function Award() {
         ...(award?.id && { id: award.id }),
       };
 
-      const response = await axios.post(
-        "http://98.83.87.183:3001/api/awards/saveBasicAward",
+      const response = await axiosInstance.post(
+        "awards/saveBasicAward",
         dataToSend,
         {
           headers: {
@@ -309,14 +310,14 @@ export default function Award() {
           },
         }
       );
-
+      console.log("response", response);
       if (response.data.status === 500) {
         showErrorDialog("award name is used before");
         setIsAccordionOneEditing(true);
         return;
       }
 
-      setAward(response.data.data);
+      setAward(response.data);
       setDialogTitle("Successfully");
       setType("success");
       setDialogMessage("");
@@ -401,8 +402,8 @@ export default function Award() {
           value: Number(prize.value),
         })),
       };
-      const response = await axios.post(
-        "http://98.83.87.183:3001/api/awards/savePrizes",
+      const response = await axiosInstance.post(
+        "awards/savePrizes",
         requestBody,
         {
           headers: {
@@ -474,15 +475,15 @@ export default function Award() {
             }
             return data;
           });
-        const milestonesResponse = await axios.post(
-          `http://98.83.87.183:3001/api/awards/saveAwardMilestone`,
+        const milestonesResponse = await axiosInstance.post(
+          `awards/saveAwardMilestone`,
           {
             awardId: award.id,
             milestone: milestonesData,
           }
         );
-        const eventsResponse = await axios.post(
-          `http://98.83.87.183:3001/api/awards/saveEvent`,
+        const eventsResponse = await axiosInstance.post(
+          `awards/saveEvent`,
           { awardId: award.id, events: eventsData },
           {
             headers: {
@@ -514,9 +515,7 @@ export default function Award() {
   useEffect(() => {
     const fetchMilestones = async () => {
       try {
-        const response = await axios.get(
-          "http://98.83.87.183:3001/api/timeline/milestones"
-        );
+        const response = await axiosInstance.get("timeline/milestones");
         setMilestones(response.data.data);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -529,9 +528,9 @@ export default function Award() {
     const fetchData = async () => {
       try {
         const [categoriesRes, sponsorsRes, audienceRes] = await Promise.all([
-          axios.get("http://98.83.87.183:3001/api/categories"),
-          axios.get("http://98.83.87.183:3001/api/sponsors"),
-          axios.get("http://98.83.87.183:3001/api/audience"),
+          axiosInstance.get("categories"),
+          axiosInstance.get("sponsors"),
+          axiosInstance.get("audience"),
         ]);
         setCategories(categoriesRes.data.data);
         setSponsors(sponsorsRes.data.data);
@@ -565,8 +564,8 @@ export default function Award() {
       };
 
       try {
-        const response = await axios.post(
-          "http://98.83.87.183:3001/api/awards/saveJudgeRules",
+        const response = await axiosInstance.post(
+          "awards/saveJudgeRules",
           judgeRulesData,
           {
             headers: {
@@ -636,8 +635,8 @@ export default function Award() {
     formDataToSend.append("file", file);
 
     try {
-      const response = await axios.post(
-        "http://98.83.87.183:3001/api/attachments/upload",
+      const response = await axiosInstance.post(
+        "attachments/upload",
         formDataToSend,
         {
           headers: {
@@ -649,7 +648,7 @@ export default function Award() {
       const filePath = response.data.filePath;
       const fullPath = filePath.startsWith("http")
         ? filePath
-        : `http://98.83.87.183:3001/${filePath}`;
+        : `${API_STORAGE_URL}${filePath}`;
       console.log("full path", fullPath);
 
       setAwardData((prev) => ({
@@ -727,13 +726,13 @@ export default function Award() {
       if (entry.id) {
         let url = "";
         if (entry.type === "001") {
-          url = `http://98.83.87.183:3001/api/awards/event/${entry.id}`;
+          url = `awards/event/${entry.id}`;
         } else if (entry.type === "002") {
-          url = `http://98.83.87.183:3001/api/awards/milestone/${entry.id}`;
+          url = `awards/milestone/${entry.id}`;
         }
 
         if (url) {
-          await axios.delete(url);
+          await axiosInstance.delete(url);
         }
       }
 
@@ -802,9 +801,7 @@ export default function Award() {
       return;
     }
     try {
-      const response = await axios.delete(
-        `http://98.83.87.183:3001/api/awards/judge-rules/${id}`
-      );
+      const response = await axiosInstance.delete(`awards/judge-rules/${id}`);
 
       if (response.status === 200) {
         const updatedTerms = [...Judgeterms];
@@ -827,8 +824,8 @@ export default function Award() {
   const deleteApplicantTerm = async (index: number, id: string) => {
     if (applicantSettings.applicantRules.length === 1) return;
     try {
-      const response = await axios.delete(
-        `http://98.83.87.183:3001/api/awards/applicant-rules/${id}`
+      const response = await axiosInstance.delete(
+        `awards/applicant-rules/${id}`
       );
       if (response.status === 200) {
         const updatedSettings = { ...applicantSettings };
@@ -1023,8 +1020,8 @@ export default function Award() {
     if (!award?.id) return;
 
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/applicantRules/${award.id}`
+      const response = await axiosInstance.get(
+        `awards/applicantRules/${award.id}`
       );
 
       if (response.data.data?.length > 0) {
@@ -1063,9 +1060,7 @@ export default function Award() {
 
     setAwardBasicInfoLoading(true); // start loading
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/${award.id}`
-      );
+      const response = await axiosInstance.get(`awards/${award.id}`);
       const apiData = response.data.data;
 
       console.log("API Response:", apiData);
@@ -1102,8 +1097,8 @@ export default function Award() {
     if (!award || !award.id) return;
     setLoadingMilestones(true);
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/awardMilestones/${award.id}`
+      const response = await axiosInstance.get(
+        `awards/awardMilestones/${award.id}`
       );
 
       const milestonesData = response.data.data.map((milestone) => {
@@ -1135,9 +1130,7 @@ export default function Award() {
     if (!award || !award.id) return;
     setLoadingEvents(true);
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/events/${award.id}`
-      );
+      const response = await axiosInstance.get(`awards/events/${award.id}`);
 
       const eventsData = response.data.data.map((event) => ({
         type: "001",
@@ -1178,9 +1171,7 @@ export default function Award() {
 
     setPrizesLoading(true);
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/prizes/${award.id}`
-      );
+      const response = await axiosInstance.get(`awards/prizes/${award.id}`);
       const fetchedPrizes = response.data.data;
 
       const updatedPrizes =
@@ -1209,9 +1200,7 @@ export default function Award() {
     setJudgeLoading(true); // Start loading
 
     try {
-      const response = await axios.get(
-        `http://98.83.87.183:3001/api/awards/judgeRules/${award.id}`
-      );
+      const response = await axiosInstance.get(`awards/judgeRules/${award.id}`);
       setJudgeTerms(response.data.data);
     } catch (error) {
       console.error("Failed to fetch judge terms", error);
@@ -1270,9 +1259,7 @@ export default function Award() {
       return;
     }
     try {
-      const response = await axios.delete(
-        `http://98.83.87.183:3001/api/awards/prizes/${prizeId}`
-      );
+      const response = await axiosInstance.delete(`awards/prizes/${prizeId}`);
       if (response.status === 200) {
         setPrizes((prevPrizes) =>
           prevPrizes.filter((prize) => prize.id !== prizeId)
@@ -1621,10 +1608,10 @@ export default function Award() {
                                   previewUrl ||
                                   (language === "Ar"
                                     ? awardData.logoAr
-                                      ? `http://98.83.87.183:3001/${awardData.logoAr}`
+                                      ? `${API_STORAGE_URL}${awardData.logoAr}`
                                       : null
                                     : awardData.logoEn
-                                      ? `http://98.83.87.183:3001/${awardData.logoEn}`
+                                      ? `${API_STORAGE_URL}${awardData.logoEn}`
                                       : null) ||
                                   "/assets/add-logo.png"
                                 }

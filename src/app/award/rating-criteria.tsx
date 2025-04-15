@@ -10,6 +10,9 @@ import React, { useEffect, useState } from "react";
 import FactorAccordion from "./factor-accordion";
 import { useRatingCriteria } from "../context/RatingCriteriaContext";
 import axios from "axios";
+import axiosInstance from "../utils/axios";
+import Tooltip from "@mui/material/Tooltip";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 export default function RatingCriteria({ language, awardId }) {
   const {
@@ -24,21 +27,22 @@ export default function RatingCriteria({ language, awardId }) {
 
   useEffect(() => {
     setAccordions([]);
+
     const fetchFactors = async () => {
       if (!awardId) return;
 
       setLoading(true);
       try {
-        const response = await axios.get(
-          `http://98.83.87.183:3001/api/awards/factors/${awardId}`,
-          { headers: { lang: language } }
-        );
+        const response = await axiosInstance.get(`awards/factors/${awardId}`, {
+          headers: { lang: language },
+        });
 
         if (response.data.data?.length > 0) {
           const factors = response.data.data.map((factor, index) => ({
             id: `panel${index + 1}`,
             factorData: {
               id: factor.id,
+              // Keep null values as-is - don't fall back to English
               factorName: language === "Ar" ? factor.nameAr : factor.nameEn,
               factorDescription:
                 language === "Ar" ? factor.descriptionAr : factor.descriptionEn,
@@ -62,8 +66,8 @@ export default function RatingCriteria({ language, awardId }) {
                     scaleMin: a.scaleMin,
                     scaleMax: a.scaleMax,
                     scaleJump: a.scaleJump,
-                    scaleNotesAr: a.scaleNotesAr,
-                    scaleNotesEn: a.scaleNotesEn,
+                    scaleNotes:
+                      language === "Ar" ? a.scaleNotesAr : a.scaleNotesEn,
                   })) || [],
               })) || [],
             fieldErrors: {
@@ -124,13 +128,13 @@ export default function RatingCriteria({ language, awardId }) {
     setExpandedPanel(newId);
   };
 
-  // if (loading) {
-  //   return (
-  //     <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-  //       <CircularProgress />
-  //     </Box>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -143,27 +147,40 @@ export default function RatingCriteria({ language, awardId }) {
         <Typography sx={{ color: "#721F31" }} variant="h6" component="h2">
           {totalWeight} Out of 100%
         </Typography>
-        <Button
-          onClick={addAccordion}
-          disabled={!awardId}
-          sx={{
-            color: "white",
-            backgroundColor: "#721F31",
-            borderRadius: "8px",
-            width: { xs: "50%", sm: "200px", md: "160px" },
-            height: { xs: "60px", sm: "40px", md: "35px" },
-            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
-            "&:hover": {
-              backgroundColor: "#5a1827",
-            },
-            ":disabled": {
-              backgroundColor: "#D3D3D3",
+
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Tooltip title="Add a new evaluation factor to the form">
+            <InfoOutlinedIcon
+              sx={{
+                fontSize: 20,
+                color: "#888",
+                cursor: "pointer",
+                mr: 1,
+              }}
+            />
+          </Tooltip>
+          <Button
+            onClick={addAccordion}
+            disabled={!awardId}
+            sx={{
               color: "white",
-            },
-          }}
-        >
-          Add New Factor
-        </Button>
+              backgroundColor: "#721F31",
+              borderRadius: "8px",
+              width: { xs: "50%", sm: "200px", md: "160px" },
+              height: { xs: "60px", sm: "40px", md: "35px" },
+              boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+              "&:hover": {
+                backgroundColor: "#5a1827",
+              },
+              ":disabled": {
+                backgroundColor: "#D3D3D3",
+                color: "white",
+              },
+            }}
+          >
+            Add New Factor
+          </Button>
+        </Box>
       </Stack>
 
       <Box>
