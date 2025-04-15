@@ -37,7 +37,6 @@ export default function FactorAccordion({
   accordions,
   awardId,
 }) {
-  console.log("accordion", accordion);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmDialogConfig, setConfirmDialogConfig] = useState<{
     title: string;
@@ -193,8 +192,8 @@ export default function FactorAccordion({
           ...tempData,
           id: savedFactorId,
         },
-        questioners: updatedQuestions, // Ensure this contains the latest answers
-        tempEditData: undefined, // Clear temp data
+        questioners: updatedQuestions,
+        tempEditData: undefined,
         isAccordionEditing: false,
       };
 
@@ -218,26 +217,18 @@ export default function FactorAccordion({
       console.error(`Accordion at index ${index} not found.`);
       return;
     }
-
-    // Check if we're using temporary data
     if (updatedAccordions[index].isAccordionEditing) {
-      // Create temp data if it doesn't exist
       if (!updatedAccordions[index].tempEditData) {
         updatedAccordions[index].tempEditData = {
           ...updatedAccordions[index].factorData,
         };
       }
-
-      // Update the temp data
       updatedAccordions[index].tempEditData[field] = value;
     } else {
-      // Update the main data directly if not in editing mode
       updatedAccordions[index].factorData[field] = value;
     }
 
     setAccordions(updatedAccordions);
-
-    // Console log for debugging
     console.log(
       "Updated field:",
       field,

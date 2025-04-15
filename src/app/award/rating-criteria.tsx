@@ -23,18 +23,18 @@ export default function RatingCriteria({ language, awardId }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log("language", language);
+    setAccordions([]);
     const fetchFactors = async () => {
       if (!awardId) return;
 
       setLoading(true);
       try {
         const response = await axios.get(
-          `http://98.83.87.183:3001/api/awards/factors/${awardId}`
+          `http://98.83.87.183:3001/api/awards/factors/${awardId}`,
+          { headers: { lang: language } }
         );
 
         if (response.data.data?.length > 0) {
-          console.log("hiiii", response.data.data);
           const factors = response.data.data.map((factor, index) => ({
             id: `panel${index + 1}`,
             factorData: {
@@ -84,9 +84,10 @@ export default function RatingCriteria({ language, awardId }) {
     };
 
     fetchFactors();
-  }, [awardId, language, expandedPanel]);
+  }, [awardId, language]);
 
   const handleChange = (panel) => (event, isExpanded) => {
+    console.log("expanded panel", panel);
     setExpandedPanel(isExpanded ? panel : null);
   };
 
