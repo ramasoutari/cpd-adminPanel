@@ -8,7 +8,7 @@ import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
-import Header from "./components/header";
+import Header from "../components/header";
 import { useRouter } from "next/navigation";
 
 const drawerWidth = 240;
@@ -37,10 +37,10 @@ export default function AdminLayout({ window, children }: Props) {
       setMobileOpen(!mobileOpen);
     }
   };
-   const handleNavigation = (text: string) => {
-     const path = `/${text.toLowerCase()}`;
-     router.push(path);
-   };
+  const handleNavigation = (text: string) => {
+    const path = `/${text.toLowerCase()}`;
+    router.push(path);
+  };
 
   const drawer = (
     <div>
@@ -76,74 +76,74 @@ export default function AdminLayout({ window, children }: Props) {
   );
 
   return (
-      <Box sx={{ display: "flex", flexDirection: "column" }}>
-        <CssBaseline />
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      <CssBaseline />
 
-        {/* Header first */}
-        <Header />
+      {/* Header first */}
+      <Header />
 
-        {/* Content area with drawer and main content */}
-        <Box sx={{ display: "flex", position: "relative" }}>
-          {/* Navigation drawer */}
-          <Box
-            component="nav"
-            sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-            aria-label="mailbox folders"
-          >
-            {/* Mobile drawer */}
-            <Drawer
-              variant="temporary"
-              open={mobileOpen}
-              onTransitionEnd={handleDrawerTransitionEnd}
-              onClose={handleDrawerClose}
-              sx={{
-                display: { xs: "block", sm: "none" },
-                "& .MuiDrawer-paper": {
-                  boxSizing: "border-box",
-                  width: drawerWidth,
-                  top: "auto",
-                },
-              }}
-              slotProps={{
-                root: {
-                  keepMounted: true,
-                },
-              }}
-            >
-              {drawer}
-            </Drawer>
-
-            <Drawer
-              variant="permanent"
-              sx={{
-                display: { xs: "none", sm: "block" },
-                "& .MuiDrawer-paper": {
-                  boxSizing: "border-box",
-                  width: drawerWidth,
-                  top: "auto",
-                  position: "relative",
-                  borderRight: "none",
-                },
-              }}
-              open
-            >
-              {drawer}
-            </Drawer>
-          </Box>
-
-          {/* Main content area */}
-          <Box
-            component="main"
+      {/* Content area with drawer and main content */}
+      <Box sx={{ display: "flex", position: "relative" }}>
+        {/* Navigation drawer */}
+        <Box
+          component="nav"
+          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          aria-label="mailbox folders"
+        >
+          {/* Mobile drawer */}
+          <Drawer
+            variant="temporary"
+            open={mobileOpen}
+            onTransitionEnd={handleDrawerTransitionEnd}
+            onClose={handleDrawerClose}
             sx={{
-              flexGrow: 1,
-              p: 3,
-              width: { sm: `calc(100% - ${drawerWidth}px)` },
+              display: { xs: "block", sm: "none" },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+                top: "auto",
+              },
+            }}
+            slotProps={{
+              root: {
+                keepMounted: true,
+              },
             }}
           >
-            {/* Add your main content here */}
-            {children}
-          </Box>
+            {drawer}
+          </Drawer>
+
+          <Drawer
+            variant="permanent"
+            sx={{
+              display: { xs: "none", sm: "block" },
+              "& .MuiDrawer-paper": {
+                boxSizing: "border-box",
+                width: drawerWidth,
+                top: "auto",
+                position: "relative",
+                borderRight: "none",
+              },
+            }}
+            open
+          >
+            {drawer}
+          </Drawer>
+        </Box>
+
+        {/* Main content area */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+          }}
+        >
+          {/* Add your main content here */}
+          {children}
         </Box>
       </Box>
+    </Box>
   );
 }

@@ -9,9 +9,11 @@ export const axiosInstance = axios.create({
 // Interceptors
 axiosInstance.interceptors.response.use(
   (res) => {
-    return res.data;
+    return res;
   },
-  (error) => {}
+  (error) => {
+    throw error?.response?.data;
+  }
 );
 
 export default axiosInstance;

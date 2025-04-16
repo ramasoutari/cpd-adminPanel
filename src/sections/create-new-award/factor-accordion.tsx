@@ -6,6 +6,7 @@ import {
   accordionSummaryClasses,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,14 +22,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import React, { useEffect, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import axios from "axios";
-import { useRatingCriteria } from "../context/RatingCriteriaContext";
-import ApiDialog from "../components/dialog";
-import axiosInstance from "../utils/axios";
+import { useRatingCriteria } from "../../context/RatingCriteriaContext";
+import ApiDialog from "../../components/dialog";
+import axiosInstance from "../../utils/axios";
+import { Weight } from "lucide-react";
 
 export default function FactorAccordion({
   accordion,
@@ -38,17 +41,23 @@ export default function FactorAccordion({
   handleChange,
   setAccordions,
   accordions,
+  setExpandedPanel,
   awardId,
 }) {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [confirmDialogConfig, setConfirmDialogConfig] = useState<{
     title: string;
     message: string;
+    type: string;
     onConfirm: () => void;
+    onCancel: () => void;
   }>({
     title: "Confirm",
     message: "",
+    type: "",
     onConfirm: () => {},
+    onCancel: () => {},
   });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
@@ -81,7 +90,7 @@ export default function FactorAccordion({
       updatedAccordions[index].isAccordionEditing = false;
       setAccordions(updatedAccordions);
     }
-    handleChange(null)(); // Collapse the accordion
+    handleChange(null)();
   };
   const resetFieldErrors = (index) => {
     setAccordions((prev) => {
@@ -99,113 +108,198 @@ export default function FactorAccordion({
       return updated;
     });
   };
+
   const validateFields = (data) => {
+    console.log("data", data);
+    const isEmpty = (value) =>
+      value === null || value === undefined || value === "";
+
+    // Improved check for numeric values
+    const isInvalidNumber = (value) => {
+      if (isEmpty(value)) return true;
+      const num = Number(value);
+      return isNaN(num) || !isFinite(num);
+    };
+
     const errors = {
-      factorName: !data.factorName,
-      factorDescription: !data.factorDescription,
-      relativeweight:
-        !data.relativeweight || isNaN(Number(data.relativeweight)),
+      factorName: isEmpty(data.factorName),
+      factorDescription: isEmpty(data.factorDescription),
+      relativeweight: isInvalidNumber(data.relativeweight),
       questionerType: false,
       questions: [],
     };
 
-    // Validate each question
-    if (data.questioners && data.questioners.length > 0) {
-      errors.questions = data.questioners.map((q, qIndex) => {
+    if (data.questioners?.length > 0) {
+      errors.questions = data.questioners.map((q) => {
         const questionErrors = {
-          question: !q.question,
-          weight: !q.weight || isNaN(Number(q.weight)),
+          question: isEmpty(q.question),
+          weight: isInvalidNumber(q.weight),
           answers: [],
         };
 
-        if (q.answers && q.answers.length > 0) {
-          questionErrors.answers = q.answers.map((a, aIndex) => {
-            if (q.type === "001") {
+        if (q.type === "002" || q.type === "003") {
+          const expectedAnswerCount = q.type === "002" ? 3 : 5;
+
+          if (!q.answers || q.answers.length < expectedAnswerCount) {
+            questionErrors.answers = Array(expectedAnswerCount).fill({
+              answer: true,
+              weight: true,
+              error: "All answers must be completed",
+            });
+          } else {
+            questionErrors.answers = q.answers.map((a) => {
+              // Get the answer from either text or answer field
+              const answerText = a.answer || a.text || "";
               return {
-                mark: !a.mark || isNaN(Number(a.mark)),
+                answer: isEmpty(answerText),
+                weight: isInvalidNumber(a.weight),
               };
-            } else if (q.type === "002" || q.type === "003") {
-              return {
-                answer: !(a.answer || a.text), // True if both are empty
-                mark: !(a.mark || a.weight), // True if both are empty
-              };
-            } else if (q.type === "004") {
-              // Scale question
-              return {
-                scaleMin:
-                  !a.scaleMin ||
-                  isNaN(Number(a.scaleMin)) ||
-                  Number(a.scaleMin) < 0,
-                scaleMax:
-                  !a.scaleMax ||
-                  isNaN(Number(a.scaleMax)) ||
-                  Number(a.scaleMax) <= Number(a.scaleMin),
-                scaleJump:
-                  !a.scaleJump ||
-                  isNaN(Number(a.scaleJump)) ||
-                  Number(a.scaleJump) <= 0,
-                scaleNotes: false,
-              };
-            }
-            return {};
+            });
+          }
+        } else if (q.type === "001") {
+          // For Yes/No questions
+          questionErrors.answers = [];
+
+          if (!q.answers || q.answers.length < 2) {
+            questionErrors.answers = [
+              { weight: true, error: "Yes weight is required" },
+              { weight: true, error: "No weight is required" },
+            ];
+          } else {
+            questionErrors.answers = [
+              {
+                weight:
+                  q.answers[0]?.weight === undefined ||
+                  q.answers[0]?.weight === null ||
+                  q.answers[0]?.weight === "" ||
+                  isNaN(Number(q.answers[0]?.weight)),
+              },
+              {
+                weight:
+                  q.answers[1]?.weight === undefined ||
+                  q.answers[1]?.weight === null ||
+                  q.answers[1]?.weight === "" ||
+                  isNaN(Number(q.answers[1]?.weight)),
+              },
+            ];
+          }
+        } else if (q.type === "004") {
+          const answerErrors = q.answers.map((answer) => {
+            // Convert values to numbers consistently
+            const scaleMin =
+              answer.scaleMin !== undefined ? Number(answer.scaleMin) : null;
+            const scaleMax =
+              answer.scaleMax !== undefined ? Number(answer.scaleMax) : null;
+            const scaleJump =
+              answer.scaleJump !== undefined ? Number(answer.scaleJump) : null;
+
+            return {
+              scaleMin:
+                isEmpty(answer.scaleMin) || isNaN(scaleMin) || scaleMin < 0,
+              scaleMax:
+                isEmpty(answer.scaleMax) ||
+                isNaN(scaleMax) ||
+                (scaleMin !== null &&
+                  scaleMax !== null &&
+                  scaleMax <= scaleMin),
+              scaleJump:
+                isEmpty(answer.scaleJump) || isNaN(scaleJump) || scaleJump <= 0,
+              scaleNotes: false,
+            };
           });
-        } else {
-          questionErrors.answers = [
-            { error: "At least one answer is required" },
-          ];
+
+          questionErrors.answers = answerErrors;
         }
 
         return questionErrors;
       });
     } else {
       errors.questions = [{ error: "At least one question is required" }];
-    }    const updatedAccordions = [...accordions];
-    updatedAccordions[index] = {
-      ...updatedAccordions[index],
-      fieldErrors: {
-        ...errors,
-        hasQuestionErrors: errors.questions.some(
-          (q) =>
-            q.error ||
-            q.question ||
-            q.weight ||
-            q.answers?.some((a) => Object.values(a).some((e) => e))
-        ),
-      },
-    };
+    }
 
-    setAccordions(updatedAccordions);
-    const hasErrors =
-      errors.factorName ||
-      errors.factorDescription ||
-      errors.relativeweight ||
-      errors.questions.some(
+    // Update state
+    setAccordions((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        fieldErrors: {
+          ...errors,
+          hasQuestionErrors: errors.questions.some(
+            (q) =>
+              q.error ||
+              q.question ||
+              q.weight ||
+              q.answers?.some((a) => Object.values(a).some(Boolean))
+          ),
+          showErrors: true,
+        },
+      };
+      return updated;
+    });
+
+    return (
+      !errors.factorName &&
+      !errors.factorDescription &&
+      !errors.relativeweight &&
+      !errors.questions.some(
         (q) =>
           q.error ||
           q.question ||
           q.weight ||
-          q.answers?.some((a) => Object.values(a).some((v) => v === true))
-      );
-
-    return !hasErrors;
+          q.answers?.some((a) => Object.values(a).some(Boolean))
+      )
+    );
   };
+  useEffect(() => {
+    if (accordion.isAccordionEditing) {
+      const updated = [...accordions];
+      const target = updated[index].tempEditData || updated[index];
+
+      target.questioners =
+        target.questioners?.map((q) => ({
+          ...q,
+          answers:
+            q.answers?.map((a) => ({
+              text: a.text ?? "",
+              answer: a.answer ?? "",
+              weight: a.weight ?? "",
+            })) ||
+            (q.type === "002" ? Array(3) : Array(5)).fill().map(() => ({
+              text: "",
+              answer: "",
+              weight: "",
+            })),
+        })) || [];
+
+      setAccordions(updated);
+    }
+  }, [accordion.isAccordionEditing]);
   useEffect(() => {
     console.log("Field errors updated:", accordion.fieldErrors);
   }, [accordion.fieldErrors]);
   const handleSave = async () => {
-
     const updatedAccordions = [...accordions];
     const tempData = updatedAccordions[index].tempEditData;
+    updatedAccordions[index] = {
+      ...updatedAccordions[index],
+      fieldErrors: {
+        factorName: false,
+        factorDescription: false,
+        relativeweight: false,
+        questionerType: false,
+        questions: [],
+        hasQuestionErrors: false,
+      },
+    };
+    setAccordions(updatedAccordions);
     const isValid = validateFields(tempData);
-
-    
-    console.log("isValid",isValid)
 
     if (!isValid) {
       showErrorDialog("Please fill all the answers before saving.");
-   return;
- }
+      return;
+    }
     try {
+      setIsSaving(true);
       const factorPayload = {
         factorId: tempData.id,
         awardId: awardId,
@@ -219,18 +313,12 @@ export default function FactorAccordion({
         factorPayload,
         { headers: { lang: language } }
       );
-      console.log("factorResponse", factorResponse);
-      if (factorResponse.data?.status === 709) {
+      const factorStatus =
+        factorResponse.data?.result?.status || factorResponse.data?.status;
+      if (factorStatus === 709) {
         showErrorDialog("You have exceeded the total factors weight limit!");
         return;
       }
-      // if (factorResponse.data?.status === 708) {
-      //   setDialogOpen(true);
-      //   setDialogTitle("");
-      //   setType("success");
-      //   setDialogMessage("Maximum factor weight reached successfully!");
-      //   return;
-      // }
 
       const savedFactorId =
         factorResponse.data?.data?.id || factorPayload.factorId;
@@ -259,11 +347,11 @@ export default function FactorAccordion({
           questionPayload.answers = [
             {
               text: language === "En" ? "Yes" : "نعم",
-              weight: Number(q.answers?.[0]?.mark) || 0,
+              weight: Number(q.answers?.[0]?.weight) || 0,
             },
             {
               text: language === "En" ? "No" : "لا",
-              weight: Number(q.answers?.[1]?.mark) || 0,
+              weight: Number(q.answers?.[1]?.weight) || 0,
             },
           ];
         } else {
@@ -272,7 +360,7 @@ export default function FactorAccordion({
             q.answers?.map((a: any) => ({
               // ...(a.id && { answerId: a.id }),
               text: a.text || a.answer || "",
-              weight: Number(a.weight ?? a.mark ?? 0),
+              weight: Number(a.weight ?? a.weight ?? 0),
             })) || [];
         }
 
@@ -281,9 +369,15 @@ export default function FactorAccordion({
           questionPayload,
           { headers: { lang: language } }
         );
-
-        if (questionResponse.data?.status === 708) {
-          showErrorDialog("Maximum factor weight reached!");
+        console.log("questionResponse", questionResponse);
+        const questionStatus =
+          questionResponse.data?.result?.status ||
+          questionResponse.data?.status;
+        if (questionStatus === 708) {
+          showSuccessDialog("Maximum factor weight reached!");
+        }
+        if (questionStatus === 711) {
+          showErrorDialog("FACTOR MAXIMUM WEIGHT EXCEDED");
           return;
         }
         const newQuestionId =
@@ -297,7 +391,6 @@ export default function FactorAccordion({
               id: questionResponse.data?.data?.answers?.[idx]?.id || a.id,
             })) || [],
         });
-        q.id = newQuestionId;
       }
       updatedAccordions[index] = {
         ...updatedAccordions[index],
@@ -318,19 +411,26 @@ export default function FactorAccordion({
         },
       };
 
-
       setAccordions(updatedAccordions);
       handleChange(null)();
       showSuccessDialog("Factor and questions saved successfully!");
     } catch (error: any) {
       console.error("Error saving factor or questions:", error);
       showErrorDialog(
-        error.response?.data?.message || "An error occurred while saving."
+        error.response?.data?.message || "FACTOR MAXIMUM WEIGHT EXCEDED"
       );
     } finally {
       setDialogOpen(true);
+      setIsSaving(false);
     }
   };
+  if (isSaving) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   const updateAccordionData = (index, field, value) => {
     const updatedAccordions = [...accordions];
@@ -472,8 +572,6 @@ export default function FactorAccordion({
       await axiosInstance.delete(`factors/question/${factorId}/${questionId}`);
     } catch (error) {
       console.error("Delete error:", error);
-
-      // Revert: Put the question back in the correct position
       const revertAccordions = JSON.parse(JSON.stringify(accordions));
       const revertTarget = isEditing
         ? revertAccordions[accordionIndex].tempEditData?.questioners
@@ -489,7 +587,7 @@ export default function FactorAccordion({
   };
 
   const handleDeleteQuestion = (
-    questionIndex: number, // Index of the question in `questioners`
+    questionIndex: number,
     factorId: string,
     questionId?: string
   ) => {
@@ -511,8 +609,9 @@ export default function FactorAccordion({
     }
 
     try {
-      await axiosInstance.delete(`factors/${factorId}`);
+      await axiosInstance.delete(`awards/factor/${awardId}/${factorId}`);
       setAccordions((prev) => prev.filter((acc) => acc.id !== accordionId));
+      setExpandedPanel(false);
     } catch (error) {
       console.error("Delete error:", error);
       alert("Failed to delete factor. Please try again.");
@@ -557,25 +656,166 @@ export default function FactorAccordion({
   const handleCloseDialog = () => {
     setDialogOpen(false);
   };
+  const handleQuestionTypeChange = (qIndex, newType) => {
+    const updated = [...accordions];
+    const target = accordion.isAccordionEditing
+      ? updated[index].tempEditData.questioners[qIndex]
+      : updated[index].questioners[qIndex];
+
+    if (newType === target.type) return; // No change needed
+
+    // Preserve question text and weight
+    const preservedData = {
+      question: target.question,
+      weight: target.weight,
+    };
+
+    // Update with new type and reset answers
+    updated[index] = {
+      ...updated[index],
+      [accordion.isAccordionEditing ? "tempEditData" : "questioners"]: {
+        ...(accordion.isAccordionEditing
+          ? updated[index].tempEditData
+          : updated[index].questioners),
+        questioners: [
+          ...(accordion.isAccordionEditing
+            ? updated[index].tempEditData.questioners
+            : updated[index].questioners
+          ).map((q, idx) =>
+            idx === qIndex
+              ? {
+                  ...q,
+                  ...preservedData,
+                  type: newType,
+                  answers: getDefaultAnswersForType(newType),
+                }
+              : q
+          ),
+        ],
+      },
+      fieldErrors: {
+        ...updated[index].fieldErrors,
+        questions:
+          updated[index].fieldErrors?.questions?.map((q, idx) =>
+            idx === qIndex ? { question: false, weight: false, answers: [] } : q
+          ) || [],
+      },
+    };
+
+    setAccordions(updated);
+  };
+  const getDefaultAnswersForType = (type) => {
+    switch (type) {
+      case "001": // Yes/No
+        return [
+          { text: language === "En" ? "Yes" : "نعم", weight: "" },
+          { text: language === "En" ? "No" : "لا", weight: "" },
+        ];
+      case "002": // 3 options
+        return Array(3)
+          .fill()
+          .map(() => ({ text: "", answer: "", weight: "" }));
+      case "003": // 5 options
+        return Array(5)
+          .fill()
+          .map(() => ({ text: "", answer: "", weight: "" }));
+      case "004": // Scale
+        return [{ scaleMin: "", scaleMax: "", scaleJump: "", scaleNotes: "" }];
+      default:
+        return [];
+    }
+  };
   return (
     <>
-      <Dialog open={confirmDialogOpen} onClose={handleCancelDelete}>
-        <DialogTitle>{confirmDialogConfig.title}</DialogTitle>
-        <DialogContent>{confirmDialogConfig.message}</DialogContent>
-        <DialogActions>
-          <Button onClick={handleCancelDelete} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              confirmDialogConfig.onConfirm();
-              setConfirmDialogOpen(false);
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={handleCancelDelete}
+        sx={{
+          "& .MuiPaper-root": {
+            width: "600px",
+            maxWidth: "90vw",
+            padding: "24px",
+            borderRadius: "12px",
+          },
+        }}
+      >
+        <IconButton
+          aria-label="close"
+          onClick={() => {
+            setConfirmDialogOpen(false);
+          }}
+          sx={{
+            position: "absolute",
+            right: 8,
+            top: 8,
+            color: (theme) => theme.palette.grey[500],
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            textAlign: "center",
+            gap: 2,
+          }}
+        >
+          <img src="/assets/clarity_remove-line.png" />
+
+          <DialogContent
+            sx={{
+              padding: 0,
+              fontSize: "18px",
+              color: "text.primary",
             }}
-            color="error"
           >
-            Delete
-          </Button>
-        </DialogActions>
+            {confirmDialogConfig.message}
+          </DialogContent>
+
+          <DialogActions
+            sx={{
+              justifyContent: "center",
+              width: "100%",
+              padding: 0,
+              mt: 3,
+              gap: 2,
+            }}
+          >
+            <Button
+              onClick={() => {
+                confirmDialogConfig.onCancel();
+                setConfirmDialogOpen(false);
+              }}
+              variant="contained"
+              sx={{
+                minWidth: "150px",
+                padding: "8px 16px",
+                fontSize: "16px",
+                bgcolor: "#999999",
+                color: "white",
+              }}
+            >
+              No
+            </Button>
+            <Button
+              onClick={() => {
+                confirmDialogConfig.onConfirm();
+                setConfirmDialogOpen(false);
+              }}
+              color="error"
+              variant="contained"
+              sx={{
+                minWidth: "150px",
+                padding: "8px 16px",
+                fontSize: "16px",
+              }}
+            >
+              Yes
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
       <ApiDialog
         open={dialogOpen}
@@ -927,7 +1167,7 @@ export default function FactorAccordion({
                               labelId="audience-select"
                               value={q.type}
                               onChange={(e) =>
-                                handleChangeSelect(index, e, qIndex)
+                                handleQuestionTypeChange(qIndex, e.target.value)
                               }
                               displayEmpty
                               sx={{
@@ -1094,7 +1334,8 @@ export default function FactorAccordion({
                           </Grid>
                           <Box mt={3}>
                             {q.type === "001" && (
-                              <Grid container spacing={2} size={12}>
+                              <Grid container spacing={2}>
+                                {/* Yes Answer */}
                                 <Grid size={8} sx={{ mb: 2 }}>
                                   <InputLabel
                                     sx={{
@@ -1127,12 +1368,12 @@ export default function FactorAccordion({
                                   <TextField
                                     error={
                                       accordion.fieldErrors.questions?.[qIndex]
-                                        ?.mark
+                                        ?.answers?.[0]?.weight
                                     }
                                     helperText={
                                       accordion.fieldErrors.questions?.[qIndex]
-                                        ?.mrak
-                                        ? "Question mark is required"
+                                        ?.answers?.[0]?.weight
+                                        ? "Mark is required"
                                         : ""
                                     }
                                     disabled={!accordion.isAccordionEditing}
@@ -1140,22 +1381,27 @@ export default function FactorAccordion({
                                     sx={{ backgroundColor: "white" }}
                                     fullWidth
                                     inputProps={{ max: 100, min: 0 }}
+                                    onBlur={() =>
+                                      validateFields(
+                                        accordion.isAccordionEditing
+                                          ? accordion.tempEditData
+                                          : accordion
+                                      )
+                                    }
                                     value={
                                       accordion.isAccordionEditing
                                         ? (accordion.tempEditData
                                             ?.questioners?.[qIndex]
-                                            ?.answers?.[0]?.mark ?? 0)
+                                            ?.answers?.[0]?.weight ?? "")
                                         : (accordion.questioners?.[qIndex]
-                                            ?.answers?.[0]?.mark ?? 0)
+                                            ?.answers?.[0]?.weight ?? "")
                                     }
                                     onChange={(e) => {
                                       let newValue = parseInt(e.target.value);
-                                      if (newValue > 100) {
-                                        newValue = 100;
-                                      }
-                                      if (isNaN(newValue)) {
-                                        newValue = 0;
-                                      }
+                                      if (isNaN(newValue)) newValue = "";
+                                      else if (newValue > 100) newValue = 100;
+                                      else if (newValue < 0) newValue = 0;
+
                                       const updated = [...accordions];
                                       const target =
                                         accordion.isAccordionEditing
@@ -1165,10 +1411,7 @@ export default function FactorAccordion({
 
                                       if (!target.answers)
                                         target.answers = [{}, {}];
-                                      if (!target.answers[0])
-                                        target.answers[0] = {};
-
-                                      target.answers[0].mark = newValue;
+                                      target.answers[0].weight = newValue;
                                       setAccordions(updated);
                                     }}
                                   />
@@ -1203,30 +1446,42 @@ export default function FactorAccordion({
                                     Mark
                                   </InputLabel>
                                   <TextField
+                                    error={
+                                      accordion.fieldErrors.questions?.[qIndex]
+                                        ?.answers?.[1]?.weight
+                                    }
+                                    onBlur={() =>
+                                      validateFields(
+                                        accordion.isAccordionEditing
+                                          ? accordion.tempEditData
+                                          : accordion
+                                      )
+                                    }
+                                    helperText={
+                                      accordion.fieldErrors.questions?.[qIndex]
+                                        ?.answers?.[1]?.weight
+                                        ? "Mark is required"
+                                        : ""
+                                    }
                                     disabled={!accordion.isAccordionEditing}
                                     type="number"
                                     sx={{ backgroundColor: "white" }}
                                     fullWidth
-                                    inputProps={{
-                                      min: 0,
-                                      max: 100,
-                                    }}
+                                    inputProps={{ min: 0, max: 100 }}
                                     value={
                                       accordion.isAccordionEditing
                                         ? (accordion.tempEditData
                                             ?.questioners?.[qIndex]
-                                            ?.answers?.[1]?.mark ?? 0)
+                                            ?.answers?.[1]?.weight ?? "")
                                         : (accordion.questioners?.[qIndex]
-                                            ?.answers?.[1]?.mark ?? 0)
+                                            ?.answers?.[1]?.weight ?? "")
                                     }
                                     onChange={(e) => {
                                       let newValue = parseInt(e.target.value);
-                                      if (newValue > 100) {
-                                        newValue = 100;
-                                      }
-                                      if (isNaN(newValue)) {
-                                        newValue = 0;
-                                      }
+                                      if (isNaN(newValue)) newValue = "";
+                                      else if (newValue > 100) newValue = 100;
+                                      else if (newValue < 0) newValue = 0;
+
                                       const updated = [...accordions];
                                       const target =
                                         accordion.isAccordionEditing
@@ -1236,331 +1491,431 @@ export default function FactorAccordion({
 
                                       if (!target.answers)
                                         target.answers = [{}, {}];
-                                      if (!target.answers[1])
-                                        target.answers[1] = {};
-
-                                      target.answers[1].mark = newValue;
+                                      target.answers[1].weight = newValue;
                                       setAccordions(updated);
                                     }}
                                   />
                                 </Grid>
                               </Grid>
                             )}
-                            {(q.type === "002" || q.type === "003") && (
+                            {(q.type === "002" || q.type === "003") &&
+                              (() => {
+                                const levels =
+                                  q.type === "002"
+                                    ? [1, 2, 3]
+                                    : [1, 2, 3, 4, 5];
+                                const source = accordion.isAccordionEditing
+                                  ? accordion.tempEditData
+                                  : accordion;
+
+                                return (
+                                  <Grid container spacing={2}>
+                                    {levels.map((level, i) => {
+                                      const answer =
+                                        source?.questioners?.[qIndex]
+                                          ?.answers?.[i] || {};
+                                      const answerValue =
+                                        answer.answer || answer.text || "";
+                                      const markValue = answer.weight || "";
+
+                                      const answerError =
+                                        accordion.fieldErrors?.questions?.[
+                                          qIndex
+                                        ]?.answers?.[i]?.answer || false;
+                                      const weightError =
+                                        accordion.fieldErrors?.questions?.[
+                                          qIndex
+                                        ]?.answers?.[i]?.weight || false;
+
+                                      return (
+                                        <React.Fragment key={i}>
+                                          <Grid size={8} sx={{ mb: 2 }}>
+                                            <InputLabel>
+                                              {getLabelWithLanguage(
+                                                `Answer ${level}`
+                                              )}
+                                            </InputLabel>
+                                            <TextField
+                                              value={answerValue}
+                                              error={answerError}
+                                              helperText={
+                                                answerError
+                                                  ? "Answer text is required"
+                                                  : ""
+                                              }
+                                              disabled={
+                                                !accordion.isAccordionEditing
+                                              }
+                                              fullWidth
+                                              sx={{ backgroundColor: "white" }}
+                                              onChange={(e) => {
+                                                const updated = [...accordions];
+                                                const target =
+                                                  accordion.isAccordionEditing
+                                                    ? updated[index]
+                                                        .tempEditData
+                                                        .questioners[qIndex]
+                                                    : updated[index]
+                                                        .questioners[qIndex];
+
+                                                if (target) {
+                                                  if (!target.answers)
+                                                    target.answers = [];
+                                                  if (!target.answers[i])
+                                                    target.answers[i] = {};
+
+                                                  target.answers[i] = {
+                                                    ...target.answers[i],
+                                                    text: e.target.value,
+                                                    answer: e.target.value,
+                                                    weight:
+                                                      target.answers[i]
+                                                        .weight || markValue,
+                                                  };
+
+                                                  if (
+                                                    updated[index].fieldErrors
+                                                      ?.questions?.[qIndex]
+                                                      ?.answers?.[i]
+                                                  ) {
+                                                    updated[
+                                                      index
+                                                    ].fieldErrors.questions[
+                                                      qIndex
+                                                    ].answers[i].answer = false;
+                                                  }
+
+                                                  setAccordions(updated);
+                                                }
+                                              }}
+                                              onBlur={() =>
+                                                validateFields(
+                                                  accordion.isAccordionEditing
+                                                    ? accordion.tempEditData
+                                                    : accordion
+                                                )
+                                              }
+                                            />
+                                          </Grid>
+
+                                          <Grid size={4} sx={{ mb: 2 }}>
+                                            <InputLabel>Mark</InputLabel>
+                                            <TextField
+                                              value={markValue}
+                                              error={weightError}
+                                              helperText={
+                                                weightError
+                                                  ? "Mark is required"
+                                                  : ""
+                                              }
+                                              disabled={
+                                                !accordion.isAccordionEditing
+                                              }
+                                              type="number"
+                                              fullWidth
+                                              inputProps={{ min: 0, max: 100 }}
+                                              sx={{ backgroundColor: "white" }}
+                                              onChange={(e) => {
+                                                const newValue = Math.min(
+                                                  100,
+                                                  Math.max(
+                                                    0,
+                                                    parseInt(e.target.value) ||
+                                                      0
+                                                  )
+                                                );
+
+                                                const updated = [...accordions];
+                                                const target =
+                                                  accordion.isAccordionEditing
+                                                    ? updated[index]
+                                                        .tempEditData
+                                                        .questioners[qIndex]
+                                                    : updated[index]
+                                                        .questioners[qIndex];
+
+                                                if (target) {
+                                                  if (!target.answers)
+                                                    target.answers = [];
+                                                  if (!target.answers[i])
+                                                    target.answers[i] = {};
+
+                                                  target.answers[i] = {
+                                                    ...target.answers[i],
+                                                    weight: newValue,
+                                                  };
+
+                                                  if (
+                                                    updated[index].fieldErrors
+                                                      ?.questions?.[qIndex]
+                                                      ?.answers?.[i]
+                                                  ) {
+                                                    updated[
+                                                      index
+                                                    ].fieldErrors.questions[
+                                                      qIndex
+                                                    ].answers[i].weight = false;
+                                                  }
+
+                                                  setAccordions(updated);
+                                                }
+                                              }}
+                                              onBlur={() =>
+                                                validateFields(
+                                                  accordion.isAccordionEditing
+                                                    ? accordion.tempEditData
+                                                    : accordion
+                                                )
+                                              }
+                                            />
+                                          </Grid>
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                  </Grid>
+                                );
+                              })()}
+
+                            {q.type === "004" && (
                               <Grid container spacing={2}>
-                                {(q.type === "002"
-                                  ? [1, 2, 3]
-                                  : [1, 2, 3, 4, 5]
-                                ).map((level, i) => {
-                                  const currentQuestioner =
+                                {(() => {
+                                  const questioner =
                                     accordion.isAccordionEditing
                                       ? accordion.tempEditData?.questioners?.[
                                           qIndex
                                         ]
                                       : accordion.questioners?.[qIndex];
-
-                                  const currentAnswer =
-                                    currentQuestioner?.answers?.[i] || {};
-
-                                  const answerValue =
-                                    currentAnswer.answer ||
-                                    currentAnswer.text ||
-                                    "";
-                                  const markValue =
-                                    currentAnswer.weight ||
-                                    currentAnswer.mark ||
-                                    "";
-
-                                  const answerErrors =
-                                    accordion.fieldErrors.questions?.[qIndex]
-                                      ?.answers?.[i] || {};
-                                  const answerTextError = answerErrors.answer;
-                                  const markError =
-                                    answerErrors.mark || answerErrors.weight;
+                                  const answer = questioner?.answers?.[0] ?? {
+                                    scaleMin: "",
+                                    scaleMax: "",
+                                    scaleJump: "",
+                                    scaleNotes: "",
+                                  };
 
                                   return (
-                                    <React.Fragment key={i}>
-                                      <Grid size={8} sx={{ mb: 2 }}>
-                                        <InputLabel>
-                                          {getLabelWithLanguage(
-                                            `Answer ${level}`
-                                          )}
-                                        </InputLabel>
-                                        <TextField
-                                          error={answerTextError}
-                                          helperText={
-                                            answerTextError
-                                              ? "Answer text is required"
-                                              : ""
-                                          }
-                                          disabled={
-                                            !accordion.isAccordionEditing
-                                          }
-                                          fullWidth
-                                          sx={{ backgroundColor: "white" }}
-                                          value={answerValue}
-                                          onChange={(e) => {
-                                            const updated = [...accordions];
-                                            const isEditing =
-                                              updated[index].isAccordionEditing;
-                                            const questioner = isEditing
-                                              ? updated[index].tempEditData
-                                                  ?.questioners?.[qIndex]
-                                              : updated[index].questioners[
-                                                  qIndex
-                                                ];
+                                    <>
+                                      {[
+                                        { field: "scaleMin", label: "Minimum" },
+                                        { field: "scaleMax", label: "Maximum" },
+                                        {
+                                          field: "scaleJump",
+                                          label: "Number Of Steps",
+                                        },
+                                      ].map((item) => {
+                                        const error =
+                                          accordion.fieldErrors?.questions?.[
+                                            qIndex
+                                          ]?.answers?.[0]?.[item.field] ||
+                                          false;
 
-                                            if (questioner) {
-                                              if (!questioner.answers)
-                                                questioner.answers = [];
-                                              if (!questioner.answers[i])
-                                                questioner.answers[i] = {};
-                                              questioner.answers[i].answer =
-                                                e.target.value;
-                                              questioner.answers[i].text =
-                                                e.target.value;
-                                              setAccordions(updated);
+                                        return (
+                                          <Grid
+                                            size={4}
+                                            key={item.field}
+                                            sx={{ mb: 2 }}
+                                          >
+                                            <InputLabel
+                                              sx={{
+                                                color: "black",
+                                                mb: 2,
+                                                fontSize: "18px",
+                                                fontWeight: "bold",
+                                              }}
+                                            >
+                                              {item.label}
+                                            </InputLabel>
+                                            <TextField
+                                              disabled={
+                                                !accordion.isAccordionEditing
+                                              }
+                                              fullWidth
+                                              type="number"
+                                              sx={{
+                                                backgroundColor: "white",
+                                              }}
+                                              value={answer[item.field]}
+                                              error={error}
+                                              helperText={
+                                                error
+                                                  ? `${item.label} is required`
+                                                  : ""
+                                              }
+                                              onChange={(e) => {
+                                                const updated = [...accordions];
+                                                const target =
+                                                  accordion.isAccordionEditing
+                                                    ? updated[index]
+                                                        .tempEditData
+                                                        .questioners[qIndex]
+                                                    : updated[index]
+                                                        .questioners[qIndex];
+
+                                                if (target) {
+                                                  if (!target.answers)
+                                                    target.answers = [{}];
+                                                  if (
+                                                    target.answers.length === 0
+                                                  )
+                                                    target.answers.push({});
+
+                                                  target.answers[0] = {
+                                                    ...target.answers[0],
+                                                    [item.field]:
+                                                      e.target.value,
+                                                  };
+
+                                                  if (
+                                                    updated[index].fieldErrors
+                                                      ?.questions?.[qIndex]
+                                                      ?.answers?.[0]
+                                                  ) {
+                                                    updated[
+                                                      index
+                                                    ].fieldErrors.questions[
+                                                      qIndex
+                                                    ].answers[0][item.field] =
+                                                      false;
+                                                  }
+
+                                                  setAccordions(updated);
+                                                }
+                                              }}
+                                              onBlur={(e) => {
+                                                const updated = [...accordions];
+                                                const targetAccordion =
+                                                  accordion.isAccordionEditing
+                                                    ? updated[index]
+                                                        .tempEditData
+                                                    : updated[index];
+                                                const targetQuestioner =
+                                                  targetAccordion.questioners?.[
+                                                    qIndex
+                                                  ];
+
+                                                if (targetQuestioner) {
+                                                  if (
+                                                    !targetQuestioner.answers ||
+                                                    targetQuestioner.answers
+                                                      .length === 0
+                                                  ) {
+                                                    targetQuestioner.answers = [
+                                                      {},
+                                                    ];
+                                                  }
+
+                                                  // Update the specific field with the latest input value from the blur event
+                                                  const value = e.target.value;
+                                                  const field = item.field;
+
+                                                  targetQuestioner.answers[0] =
+                                                    {
+                                                      ...targetQuestioner
+                                                        .answers[0],
+                                                      [field]: value,
+                                                    };
+                                                }
+
+                                                validateFields(targetAccordion);
+                                              }}
+                                            />
+                                          </Grid>
+                                        );
+                                      })}
+
+                                      <Grid
+                                        size={12}
+                                        container
+                                        spacing={2}
+                                        alignItems="center"
+                                      >
+                                        <Grid size={12}>
+                                          <InputLabel
+                                            sx={{
+                                              color: "black",
+                                              fontSize: "18px",
+                                              fontWeight: "bold",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                          >
+                                            {getLabelWithLanguage("Note")}
+                                          </InputLabel>
+                                        </Grid>
+                                        <Grid size={4}>
+                                          <InputLabel
+                                            sx={{
+                                              color: "gray",
+                                              fontSize: "18px",
+                                              whiteSpace: "nowrap",
+                                            }}
+                                          >
+                                            {"text"}
+                                          </InputLabel>
+                                        </Grid>
+                                        <Grid size={8}>
+                                          <TextField
+                                            multiline
+                                            minRows={3}
+                                            disabled={
+                                              !accordion.isAccordionEditing
                                             }
-                                          }}
-                                        />
-                                      </Grid>
-
-                                      <Grid size={4} sx={{ mb: 2 }}>
-                                        <InputLabel>Mark</InputLabel>
-                                        <TextField
-                                          error={markError}
-                                          helperText={
-                                            markError
-                                              ? "Mark is required and must be between 0-100"
-                                              : ""
-                                          }
-                                          disabled={
-                                            !accordion.isAccordionEditing
-                                          }
-                                          type="number"
-                                          fullWidth
-                                          inputProps={{ min: 0, max: 100 }}
-                                          sx={{ backgroundColor: "white" }}
-                                          value={markValue}
-                                          onChange={(e) => {
-                                            let newValue = parseInt(
-                                              e.target.value
-                                            );
-                                            if (newValue > 100) newValue = 100;
-                                            if (isNaN(newValue)) newValue = 0;
-
-                                            const updated = [...accordions];
-                                            const isEditing =
-                                              updated[index].isAccordionEditing;
-                                            const questioner = isEditing
-                                              ? updated[index].tempEditData
-                                                  ?.questioners?.[qIndex]
-                                              : updated[index].questioners[
-                                                  qIndex
-                                                ];
-
-                                            if (questioner) {
-                                              if (!questioner.answers)
-                                                questioner.answers = [];
-                                              if (!questioner.answers[i])
-                                                questioner.answers[i] = {};
-                                              questioner.answers[i].mark =
-                                                newValue;
-                                              questioner.answers[i].weight =
-                                                newValue;
-                                              setAccordions(updated);
+                                            fullWidth
+                                            sx={{ backgroundColor: "white" }}
+                                            value={
+                                              questioner?.answers?.[0]
+                                                ?.scaleNotes || ""
                                             }
-                                          }}
-                                        />
+                                            error={false}
+                                            helperText=""
+                                            onChange={(e) => {
+                                              const updated = [...accordions];
+                                              const target =
+                                                accordion.isAccordionEditing
+                                                  ? updated[index].tempEditData
+                                                      .questioners[qIndex]
+                                                  : updated[index].questioners[
+                                                      qIndex
+                                                    ];
+
+                                              if (target) {
+                                                if (!target.answers)
+                                                  target.answers = [{}];
+                                                if (target.answers.length === 0)
+                                                  target.answers.push({});
+
+                                                target.answers[0] = {
+                                                  ...target.answers[0],
+                                                  scaleNotes: e.target.value,
+                                                };
+
+                                                if (
+                                                  updated[index].fieldErrors
+                                                    ?.questions?.[qIndex]
+                                                    ?.answers?.[0]
+                                                ) {
+                                                  updated[
+                                                    index
+                                                  ].fieldErrors.questions[
+                                                    qIndex
+                                                  ].answers[0].scaleNotes =
+                                                    false;
+                                                }
+
+                                                setAccordions(updated);
+                                              }
+                                            }}
+                                            onBlur={() =>
+                                              validateFields(
+                                                accordion.isAccordionEditing
+                                                  ? accordion.tempEditData
+                                                  : accordion
+                                              )
+                                            }
+                                          />
+                                        </Grid>
                                       </Grid>
-                                    </React.Fragment>
+                                    </>
                                   );
-                                })}
-                              </Grid>
-                            )}
-                            {q.type === "004" && (
-                              <Grid container spacing={2}>
-                                {[
-                                  { field: "scaleMin", label: "Minimum" },
-                                  { field: "scaleMax", label: "Maximum" },
-                                  {
-                                    field: "scaleJump",
-                                    label: "Number Of Steps",
-                                  },
-                                ].map((item) => (
-                                  <Grid
-                                    size={4}
-                                    sm={4}
-                                    key={item.field}
-                                    sx={{ mb: 2 }}
-                                  >
-                                    <InputLabel
-                                      sx={{
-                                        color: "black",
-                                        mb: 2,
-                                        fontSize: "18px",
-                                        fontWeight: "bold",
-                                      }}
-                                    >
-                                      {item.label}
-                                    </InputLabel>
-                                    <TextField
-                                      disabled={!accordion.isAccordionEditing}
-                                      fullWidth
-                                      type="number"
-                                      sx={{ backgroundColor: "white" }}
-                                      value={
-                                        (accordion.isAccordionEditing
-                                          ? accordion.tempEditData
-                                              ?.questioners?.[qIndex]
-                                              ?.answers?.[0]?.[item.field]
-                                          : accordion.questioners?.[qIndex]
-                                              ?.answers?.[0]?.[item.field]) ||
-                                        ""
-                                      }
-                                      error={Boolean(
-                                        accordion.fieldErrors?.questions?.[
-                                          qIndex
-                                        ]?.answers?.[0]?.[item.field]
-                                      )}
-                                      helperText={
-                                        accordion.fieldErrors?.questions?.[
-                                          qIndex
-                                        ]?.answers?.[0]?.[item.field]
-                                          ? `${item.label} is required`
-                                          : ""
-                                      }
-                                      onChange={(e) => {
-                                        const updated = [...accordions];
-                                        const target =
-                                          accordion.isAccordionEditing
-                                            ? updated[index].tempEditData
-                                                .questioners[qIndex]
-                                            : updated[index].questioners[
-                                                qIndex
-                                              ];
-
-                                        if (target) {
-                                          if (!target.answers)
-                                            target.answers = [{}];
-                                          if (target.answers.length === 0)
-                                            target.answers.push({});
-                                          target.answers[0] = {
-                                            ...target.answers[0],
-                                            [item.field]: e.target.value,
-                                          };
-                                          if (
-                                            updated[index].fieldErrors
-                                              ?.questions?.[qIndex]
-                                              ?.answers?.[0]
-                                          ) {
-                                            updated[
-                                              index
-                                            ].fieldErrors.questions[
-                                              qIndex
-                                            ].answers[0][item.field] = false;
-                                          }
-
-                                          setAccordions(updated);
-                                        }
-                                      }}
-                                    />
-                                  </Grid>
-                                ))}
-
-                                <Grid
-                                  size={12}
-                                  container
-                                  spacing={2}
-                                  alignItems="center"
-                                >
-                                  <Grid size={12}>
-                                    <InputLabel
-                                      sx={{
-                                        color: "black",
-                                        fontSize: "18px",
-                                        fontWeight: "bold",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      {getLabelWithLanguage("Note")}
-                                    </InputLabel>
-                                  </Grid>
-                                  <Grid size={4}>
-                                    <InputLabel
-                                      sx={{
-                                        color: "gray",
-                                        fontSize: "18px",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      {"text"}
-                                    </InputLabel>
-                                  </Grid>
-                                  <Grid size={8}>
-                                    <TextField
-                                      multiline
-                                      minRows={3}
-                                      disabled={!accordion.isAccordionEditing}
-                                      fullWidth
-                                      sx={{ backgroundColor: "white" }}
-                                      value={
-                                        (accordion.isAccordionEditing
-                                          ? accordion.tempEditData
-                                              ?.questioners?.[qIndex]
-                                              ?.answers?.[0]?.scaleNotes
-                                          : accordion.questioners?.[qIndex]
-                                              ?.answers?.[0]?.scaleNotes) || ""
-                                      }
-                                      error={Boolean(
-                                        accordion.fieldErrors?.questions?.[
-                                          qIndex
-                                        ]?.answers?.[0]?.scaleNotes
-                                      )}
-                                      helperText={
-                                        accordion.fieldErrors?.questions?.[
-                                          qIndex
-                                        ]?.answers?.[0]?.scaleNotes
-                                          ? "Note is required"
-                                          : ""
-                                      }
-                                      onChange={(e) => {
-                                        const updated = [...accordions];
-                                        const target =
-                                          accordion.isAccordionEditing
-                                            ? updated[index].tempEditData
-                                                .questioners[qIndex]
-                                            : updated[index].questioners[
-                                                qIndex
-                                              ];
-
-                                        if (target) {
-                                          if (!target.answers)
-                                            target.answers = [{}];
-                                          if (target.answers.length === 0)
-                                            target.answers.push({});
-                                          target.answers[0] = {
-                                            ...target.answers[0],
-                                            scaleNotes: e.target.value,
-                                          };
-                                          if (
-                                            updated[index].fieldErrors
-                                              ?.questions?.[qIndex]
-                                              ?.answers?.[0]
-                                          ) {
-                                            updated[
-                                              index
-                                            ].fieldErrors.questions[
-                                              qIndex
-                                            ].answers[0].scaleNotes = false;
-                                          }
-
-                                          setAccordions(updated);
-                                        }
-                                      }}
-                                    />
-                                  </Grid>
-                                </Grid>
+                                })()}
                               </Grid>
                             )}
                           </Box>
