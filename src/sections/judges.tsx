@@ -189,7 +189,7 @@ function Judges({ award }) {
             fontWeight: "bold",
           }}
         >
-          {`${award.nameEn} Award judges (${judges.length})`}
+          {`${award.nameEn} Award judges (${dummyJudgesData.length})`}
         </Typography>
 
         <Button
@@ -377,7 +377,7 @@ function Judges({ award }) {
                       {judge.status}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell>
                     <IconButton
                       aria-label="more"
                       aria-controls={open ? "actions-menu" : undefined}
@@ -759,8 +759,8 @@ function Judges({ award }) {
               minHeight: "150px",
               display: "flex",
               justifyContent: "center",
-              flexDirection: "column", // to allow stacking View All at bottom
-              alignItems: "center", // center content horizontally
+              flexDirection: "column",
+              alignItems: "center",
             }}
           >
             <Box
@@ -807,7 +807,7 @@ function Judges({ award }) {
             {committees.length > 14 && (
               <Box sx={{ mt: 2 }}>
                 <Link
-                  href="award/committees"
+                  href="committees"
                   style={{
                     color: "#000",
                     textDecoration: "none",

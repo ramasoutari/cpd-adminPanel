@@ -67,17 +67,6 @@ export default function AwardPage({ params }: { params: { id: string } }) {
     );
   }
 
-  if (error) {
-    return <div className="p-6 text-red-500">{error}</div>;
-  }
-
-  if (!award) {
-    return (
-      <div className="p-6">
-        <h1 className="text-2xl font-bold">Award not found</h1>
-      </div>
-    );
-  }
   const renderTabContent = () => {
     switch (value) {
       case 0:
@@ -146,6 +135,7 @@ export default function AwardPage({ params }: { params: { id: string } }) {
             </Box>
             <Box sx={{ flex: 1, textAlign: "right" }}>
               <Button
+                onClick={() => router.push("/award")}
                 sx={{
                   color: "white",
                   backgroundColor: "#721F31",

@@ -760,7 +760,7 @@ export default function TemporaryComponent() {
       newEntry.NoteAr = "";
     } else if (type === "002") {
       newEntry.milestoneId = "";
-      newEntry.date = "";
+      newEntry.date = undefined;
     }
 
     setTimelineEntries((prev) => {
@@ -2928,14 +2928,14 @@ export default function TemporaryComponent() {
                                             );
 
                                           if (chosenMilestones.length > 0) {
-                                            return !!chosenMilestones
+                                            return chosenMilestones
                                               .map((x) =>
-                                                new Date(x?.date).getDay()
+                                                new Date(x?.date)?.getDate()
                                               )
                                               .includes(
                                                 new Date(
                                                   dateParam.toDate()
-                                                )?.getDay()
+                                                )?.getDate()
                                               );
                                           }
 
