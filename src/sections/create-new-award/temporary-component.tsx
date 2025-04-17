@@ -44,9 +44,9 @@ import dayjs from "dayjs";
 import {
   RatingCriteriaProvider,
   useRatingCriteria,
-} from "../../context/RatingCriteriaContext";
-import axiosInstance from "../../utils/axios";
-import { API_STORAGE_URL } from "../../constants";
+} from "../../app/context/RatingCriteriaContext";
+import axiosInstance from "../../app/utils/axios";
+import { API_STORAGE_URL } from "../../app/constants";
 export default function TemporaryComponent() {
   const [value, setValue] = useState(0);
   const [awardBasicInfoLoading, setAwardBasicInfoLoading] = useState(false);
@@ -543,14 +543,14 @@ export default function TemporaryComponent() {
         setDialogMessage("AWARD WEIGHT NOT FULL");
         return;
       }
-       if (error.result.status === 718) {
-         setDialogOpen(true);
-         setDialogTitle("Error");
-         setDialogTitle("");
-         setType("error");
-         setDialogMessage("FACTOR WEIGHT NOT FULL");
-         return;
-       }
+      if (error.result.status === 718) {
+        setDialogOpen(true);
+        setDialogTitle("Error");
+        setDialogTitle("");
+        setType("error");
+        setDialogMessage("FACTOR WEIGHT NOT FULL");
+        return;
+      }
     }
   };
 
@@ -1001,6 +1001,16 @@ export default function TemporaryComponent() {
 
     return fieldErrorsExist || otherErrorsExist;
   };
+  const allMilestonesSelected = () => {
+    const selectedMilestoneIds = timelineEntries
+      .filter((entry) => entry.type === "002")
+      .map((entry) => entry.milestoneId);
+
+    return milestones.every(
+      (milestone) =>
+        selectedMilestoneIds.includes(milestone.id) || milestone.isMandatory
+    );
+  };
   const areMandatoryFieldsFilled = () => {
     // 1. Award Data
     const awardFields = [
@@ -1132,45 +1142,44 @@ export default function TemporaryComponent() {
     return result;
   };
 
- const isPublishDisabled = () => {
-   console.log("accordions", accordions);
+  const isPublishDisabled = () => {
+    console.log("accordions", accordions);
 
-   const hasTimelineError = Object.values(timelineErrors).some(
-     (errorObj) => errorObj && Object.values(errorObj).some(Boolean)
-   );
+    const hasTimelineError = Object.values(timelineErrors).some(
+      (errorObj) => errorObj && Object.values(errorObj).some(Boolean)
+    );
 
-   const errors = {
-     applicantTerms: applicantTermseErrors.some(Boolean),
-     timeline: hasTimelineError,
-     judgeTerms: judgeTermseErrors.some(Boolean),
-     prizes: prizeErrors?.some(Boolean) || false,
-     fields: fieldErrors && Object.values(fieldErrors).some(Boolean),
-   };
+    const errors = {
+      applicantTerms: applicantTermseErrors.some(Boolean),
+      timeline: hasTimelineError,
+      judgeTerms: judgeTermseErrors.some(Boolean),
+      prizes: prizeErrors?.some(Boolean) || false,
+      fields: fieldErrors && Object.values(fieldErrors).some(Boolean),
+    };
 
-   const hasAtLeastOneFactor = accordions.length > 0;
+    const hasAtLeastOneFactor = accordions.length > 0;
 
-   const factorsWeight = accordions.reduce(
-     (sum, factor) => sum + (Number(factor.factorData?.relativeweight) || 0),
-     0
-   );
+    const factorsWeight = accordions.reduce(
+      (sum, factor) => sum + (Number(factor.factorData?.relativeweight) || 0),
+      0
+    );
 
-   console.log("Current validation state:", {
-     errors,
-     hasAtLeastOneFactor,
-     mandatoryComplete: areMandatoryFieldsFilled(),
-     factorsWeight,
-     factorsCount: accordions.length,
-   });
+    console.log("Current validation state:", {
+      errors,
+      hasAtLeastOneFactor,
+      mandatoryComplete: areMandatoryFieldsFilled(),
+      factorsWeight,
+      factorsCount: accordions.length,
+    });
 
-   const shouldDisable =
-     Object.values(errors).some(Boolean) ||
-     !areMandatoryFieldsFilled() ||
-     !hasAtLeastOneFactor ||
-     factorsWeight !== 100;
+    const shouldDisable =
+      Object.values(errors).some(Boolean) ||
+      !areMandatoryFieldsFilled() ||
+      !hasAtLeastOneFactor ||
+      factorsWeight !== 100;
 
-   return shouldDisable;
- };
-
+    return shouldDisable;
+  };
 
   useEffect(() => {
     const disabled = isPublishDisabled();
@@ -2962,13 +2971,26 @@ export default function TemporaryComponent() {
                           >
                             <Button
                               onClick={() => handleAddEntry("002")}
+                              disabled={allMilestonesSelected()}
                               sx={{
-                                backgroundColor: "#721F31",
+                                backgroundColor: allMilestonesSelected()
+                                  ? "#cccccc"
+                                  : "#721F31",
                                 minWidth: "45px",
                                 minHeight: "30px",
+                                "&:disabled": {
+                                  backgroundColor: "#eeeeee",
+                                  color: "#aaaaaa",
+                                },
                               }}
                             >
-                              <AddIcon sx={{ color: "white" }} />
+                              <AddIcon
+                                sx={{
+                                  color: allMilestonesSelected()
+                                    ? "#888888"
+                                    : "white",
+                                }}
+                              />
                             </Button>
                           </Stack>
                         )}

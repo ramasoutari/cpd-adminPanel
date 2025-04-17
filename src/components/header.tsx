@@ -7,7 +7,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { AccessibilityProvider } from "../context/accessibilityContext";
+import { AccessibilityProvider } from "../app/context/accessibilityContext";
 import AccessibilityToolbar from "./AccessibilityToolbar";
 import { Bell, Calendar, Expand, Menu } from "lucide-react";
 import { ExitToApp, Person } from "@mui/icons-material";
@@ -68,7 +68,7 @@ export default function Header() {
           display: "flex",
           flexDirection: "column",
           width: "100%",
-          overflowX: "hidden", 
+          overflowX: "hidden",
         }}
       >
         <AccessibilityToolbar />

@@ -1,5 +1,5 @@
 import { Box, Container, IconButton, Stack, Tooltip } from "@mui/material";
-import { useAccessibilityContext } from "@/context/accessibilityContext";
+import { useAccessibilityContext } from "@/app/context/accessibilityContext";
 import { useCallback } from "react";
 import { debounce } from "lodash";
 import Iconify from "./iconify";

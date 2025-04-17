@@ -28,9 +28,9 @@ import AddIcon from "@mui/icons-material/Add";
 import React, { useEffect, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import axios from "axios";
-import { useRatingCriteria } from "../../context/RatingCriteriaContext";
+import { useRatingCriteria } from "../../app/context/RatingCriteriaContext";
 import ApiDialog from "../../components/dialog";
-import axiosInstance from "../../utils/axios";
+import axiosInstance from "../../app/utils/axios";
 import { Weight } from "lucide-react";
 
 export default function FactorAccordion({
@@ -113,14 +113,11 @@ export default function FactorAccordion({
     console.log("data", data);
     const isEmpty = (value) =>
       value === null || value === undefined || value === "";
-
-    // Improved check for numeric values
     const isInvalidNumber = (value) => {
       if (isEmpty(value)) return true;
       const num = Number(value);
       return isNaN(num) || !isFinite(num);
     };
-
     const errors = {
       factorName: isEmpty(data.factorName),
       factorDescription: isEmpty(data.factorDescription),
@@ -148,7 +145,6 @@ export default function FactorAccordion({
             });
           } else {
             questionErrors.answers = q.answers.map((a) => {
-              // Get the answer from either text or answer field
               const answerText = a.answer || a.text || "";
               return {
                 answer: isEmpty(answerText),
@@ -157,7 +153,6 @@ export default function FactorAccordion({
             });
           }
         } else if (q.type === "001") {
-          // For Yes/No questions
           questionErrors.answers = [];
 
           if (!q.answers || q.answers.length < 2) {
@@ -184,35 +179,33 @@ export default function FactorAccordion({
             ];
           }
         } else if (q.type === "004") {
-          const answerErrors = q.answers.map((answer) => {
-            // Convert values to numbers consistently
+          const answerErrors = q.answers?.map((answer) => {
+            // Convert to numbers, treating empty strings as null
             const scaleMin =
-              answer.scaleMin !== undefined ? Number(answer.scaleMin) : null;
+              answer.scaleMin === "" ? null : Number(answer.scaleMin);
             const scaleMax =
-              answer.scaleMax !== undefined ? Number(answer.scaleMax) : null;
+              answer.scaleMax === "" ? null : Number(answer.scaleMax);
             const scaleJump =
-              answer.scaleJump !== undefined ? Number(answer.scaleJump) : null;
+              answer.scaleJump === "" ? null : Number(answer.scaleJump);
 
             return {
-              scaleMin:
-                isEmpty(answer.scaleMin) || isNaN(scaleMin) || scaleMin < 0,
+              scaleMin: scaleMin === null || isNaN(scaleMin) || scaleMin < 0,
               scaleMax:
-                isEmpty(answer.scaleMax) ||
-                isNaN(scaleMax) ||
-                (scaleMin !== null &&
-                  scaleMax !== null &&
-                  scaleMax <= scaleMin),
+                scaleMax === null || isNaN(scaleMax)
+                  ? true
+                  : scaleMin !== null && scaleMax <= scaleMin
+                    ? "must-be-greater"
+                    : false,
               scaleJump:
-                isEmpty(answer.scaleJump) || isNaN(scaleJump) || scaleJump <= 0,
+                scaleJump === null || isNaN(scaleJump) || scaleJump <= 0,
               scaleNotes: false,
             };
           });
-
-          questionErrors.answers = answerErrors;
+          questionErrors.answers = answerErrors || [{}]; // Ensure at least one answer
         }
 
-        return questionErrors;
-      });
+        return questionErrors; // This was missing
+      }); // This was missing
     } else {
       errors.questions = [{ error: "At least one question is required" }];
     }
@@ -259,45 +252,79 @@ export default function FactorAccordion({
         target.questioners?.map((q) => ({
           ...q,
           answers:
-            q.answers?.map((a) => ({
-              text: a.text ?? "",
-              answer: a.answer ?? "",
-              weight: a.weight ?? "",
-            })) ||
-            (q.type === "002" ? Array(3) : Array(5)).fill().map(() => ({
-              text: "",
-              answer: "",
-              weight: "",
-            })),
+            q.answers?.map((a) =>
+              q.type === "004"
+                ? {
+                    scaleMin: a.scaleMin ?? "",
+                    scaleMax: a.scaleMax ?? "",
+                    scaleJump: a.scaleJump ?? "",
+                    scaleNotes: a.scaleNotes ?? "",
+                  }
+                : {
+                    text: a.text ?? "",
+                    answer: a.answer ?? "",
+                    weight: a.weight ?? "",
+                  }
+            ) ||
+            (q.type === "004"
+              ? [
+                  {
+                    scaleMin: "",
+                    scaleMax: "",
+                    scaleJump: "",
+                    scaleNotes: "",
+                  },
+                ]
+              : (q.type === "002" ? Array(3) : Array(5)).fill().map(() => ({
+                  text: "",
+                  answer: "",
+                  weight: "",
+                }))),
         })) || [];
 
       setAccordions(updated);
     }
   }, [accordion.isAccordionEditing]);
+
   useEffect(() => {
     console.log("Field errors updated:", accordion.fieldErrors);
   }, [accordion.fieldErrors]);
   const handleSave = async () => {
     const updatedAccordions = [...accordions];
     const tempData = updatedAccordions[index].tempEditData;
-    updatedAccordions[index] = {
-      ...updatedAccordions[index],
-      fieldErrors: {
-        factorName: false,
-        factorDescription: false,
-        relativeweight: false,
-        questionerType: false,
-        questions: [],
-        hasQuestionErrors: false,
-      },
+    const cleanDataForValidation = {
+      ...tempData,
+      questioners: tempData.questioners?.map((q) => {
+        if (q.type === "004") {
+          console.log("Original answers:", q.answers);
+
+          const mappedAnswers = q.answers?.map((a) => {
+            console.log("Individual answer:", a);
+            return {
+              scaleMin: a.scaleMin,
+              scaleMax: a.scaleMax,
+              scaleJump: a.scaleJump,
+            };
+          }) || [{}];
+
+          console.log("Mapped answers:", mappedAnswers);
+
+          return {
+            ...q,
+            answers: mappedAnswers,
+          };
+        }
+        return q;
+      }),
     };
-    setAccordions(updatedAccordions);
-    const isValid = validateFields(tempData);
+
+    const isValid = validateFields(cleanDataForValidation);
 
     if (!isValid) {
       showErrorDialog("Please fill all the answers before saving.");
       return;
     }
+
     try {
       setIsSaving(true);
       const factorPayload = {
@@ -313,6 +340,7 @@ export default function FactorAccordion({
         factorPayload,
         { headers: { lang: language } }
       );
+
       const factorStatus =
         factorResponse.data?.result?.status || factorResponse.data?.status;
       if (factorStatus === 709) {
@@ -334,9 +362,12 @@ export default function FactorAccordion({
           weight: Number(q.weight),
           type: q.type,
         };
+
+        // Handle different question types
         if (q.type === "004") {
           questionPayload.answers = [
             {
+              // Only include scale-related fields
               scaleMin: Number(q.answers?.[0]?.scaleMin),
               scaleMax: Number(q.answers?.[0]?.scaleMax),
               scaleJump: Number(q.answers?.[0]?.scaleJump),
@@ -355,12 +386,11 @@ export default function FactorAccordion({
             },
           ];
         } else {
-          // 002, 003
+          // Types 002 and 003
           questionPayload.answers =
-            q.answers?.map((a: any) => ({
-              // ...(a.id && { answerId: a.id }),
+            q.answers?.map((a) => ({
               text: a.text || a.answer || "",
-              weight: Number(a.weight ?? a.weight ?? 0),
+              weight: Number(a.weight ?? 0),
             })) || [];
         }
 
@@ -369,7 +399,7 @@ export default function FactorAccordion({
           questionPayload,
           { headers: { lang: language } }
         );
-        console.log("questionResponse", questionResponse);
+
         const questionStatus =
           questionResponse.data?.result?.status ||
           questionResponse.data?.status;
@@ -380,6 +410,7 @@ export default function FactorAccordion({
           showErrorDialog("FACTOR MAXIMUM WEIGHT EXCEDED");
           return;
         }
+
         const newQuestionId =
           questionResponse.data?.data?.id || currentQuestionId;
         updatedQuestions.push({
@@ -392,6 +423,7 @@ export default function FactorAccordion({
             })) || [],
         });
       }
+
       updatedAccordions[index] = {
         ...updatedAccordions[index],
         factorData: {
@@ -414,7 +446,7 @@ export default function FactorAccordion({
       setAccordions(updatedAccordions);
       handleChange(null)();
       showSuccessDialog("Factor and questions saved successfully!");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving factor or questions:", error);
       showErrorDialog(
         error.response?.data?.message || "FACTOR MAXIMUM WEIGHT EXCEDED"
@@ -706,20 +738,20 @@ export default function FactorAccordion({
   };
   const getDefaultAnswersForType = (type) => {
     switch (type) {
-      case "001": // Yes/No
+      case "001":
         return [
           { text: language === "En" ? "Yes" : "نعم", weight: "" },
           { text: language === "En" ? "No" : "لا", weight: "" },
         ];
-      case "002": // 3 options
+      case "002":
         return Array(3)
           .fill()
           .map(() => ({ text: "", answer: "", weight: "" }));
-      case "003": // 5 options
+      case "003":
         return Array(5)
           .fill()
           .map(() => ({ text: "", answer: "", weight: "" }));
-      case "004": // Scale
+      case "004":
         return [{ scaleMin: "", scaleMax: "", scaleJump: "", scaleNotes: "" }];
       default:
         return [];
@@ -1691,6 +1723,10 @@ export default function FactorAccordion({
                                     scaleJump: "",
                                     scaleNotes: "",
                                   };
+                                  console.log(answer, answer);
+                                  const fieldErrors =
+                                    accordion.fieldErrors?.questions?.[qIndex]
+                                      ?.answers?.[0] || {};
 
                                   return (
                                     <>
@@ -1703,10 +1739,20 @@ export default function FactorAccordion({
                                         },
                                       ].map((item) => {
                                         const error =
-                                          accordion.fieldErrors?.questions?.[
-                                            qIndex
-                                          ]?.answers?.[0]?.[item.field] ||
-                                          false;
+                                          fieldErrors[item.field] || false;
+                                        let helperText = "";
+                                        if (
+                                          error &&
+                                          item.field === "scaleMax"
+                                        ) {
+                                          helperText =
+                                            fieldErrors.scaleMax ===
+                                            "must-be-greater"
+                                              ? "Maximum must be greater than Minimum"
+                                              : "Maximum is required";
+                                        } else if (error) {
+                                          helperText = `${item.label} is required`;
+                                        }
 
                                         return (
                                           <Grid
@@ -1734,12 +1780,8 @@ export default function FactorAccordion({
                                                 backgroundColor: "white",
                                               }}
                                               value={answer[item.field]}
-                                              error={error}
-                                              helperText={
-                                                error
-                                                  ? `${item.label} is required`
-                                                  : ""
-                                              }
+                                              error={!!error}
+                                              helperText={helperText}
                                               onChange={(e) => {
                                                 const updated = [...accordions];
                                                 const target =
@@ -1780,43 +1822,13 @@ export default function FactorAccordion({
                                                   setAccordions(updated);
                                                 }
                                               }}
-                                              onBlur={(e) => {
-                                                const updated = [...accordions];
-                                                const targetAccordion =
+                                              onBlur={() =>
+                                                validateFields(
                                                   accordion.isAccordionEditing
-                                                    ? updated[index]
-                                                        .tempEditData
-                                                    : updated[index];
-                                                const targetQuestioner =
-                                                  targetAccordion.questioners?.[
-                                                    qIndex
-                                                  ];
-
-                                                if (targetQuestioner) {
-                                                  if (
-                                                    !targetQuestioner.answers ||
-                                                    targetQuestioner.answers
-                                                      .length === 0
-                                                  ) {
-                                                    targetQuestioner.answers = [
-                                                      {},
-                                                    ];
-                                                  }
-
-                                                  // Update the specific field with the latest input value from the blur event
-                                                  const value = e.target.value;
-                                                  const field = item.field;
-
-                                                  targetQuestioner.answers[0] =
-                                                    {
-                                                      ...targetQuestioner
-                                                        .answers[0],
-                                                      [field]: value,
-                                                    };
-                                                }
-
-                                                validateFields(targetAccordion);
-                                              }}
+                                                    ? accordion.tempEditData
+                                                    : accordion
+                                                )
+                                              }
                                             />
                                           </Grid>
                                         );

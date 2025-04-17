@@ -10,6 +10,12 @@ import ListItemText from "@mui/material/ListItemText";
 import Toolbar from "@mui/material/Toolbar";
 import Header from "../components/header";
 import { useRouter } from "next/navigation";
+import Collapse from "@mui/material/Collapse";
+import ExpandLess from "@mui/icons-material/ExpandLess";
+import ExpandMore from "@mui/icons-material/ExpandMore";
+import { useEffect, useState } from "react";
+import axiosInstance from "@/app/utils/axios";
+import { CircularProgress } from "@mui/material";
 
 const drawerWidth = 240;
 
@@ -18,10 +24,45 @@ interface Props {
   children: React.ReactNode;
 }
 
+interface Award {
+  id: string;
+  name: string;
+  // Add other award properties as needed
+}
+
 export default function AdminLayout({ window, children }: Props) {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [isClosing, setIsClosing] = React.useState(false);
+  const [awardsOpen, setAwardsOpen] = React.useState(false);
+  const [awards, setAwards] = useState<Award[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (awardsOpen && awards.length === 0) {
+      fetchAwards();
+    }
+  }, [awardsOpen]);
+
+  const fetchAwards = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axiosInstance.get("/awards");
+      const data = response.data.data;
+      setAwards(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch awards");
+      console.error("Error fetching awards:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAwardsClick = () => {
+    setAwardsOpen(!awardsOpen);
+  };
 
   const handleDrawerClose = () => {
     setIsClosing(true);
@@ -37,8 +78,8 @@ export default function AdminLayout({ window, children }: Props) {
       setMobileOpen(!mobileOpen);
     }
   };
-  const handleNavigation = (text: string) => {
-    const path = `/${text.toLowerCase()}`;
+
+  const handleNavigation = (path: string) => {
     router.push(path);
   };
 
@@ -46,10 +87,10 @@ export default function AdminLayout({ window, children }: Props) {
     <div>
       <Toolbar />
       <List>
-        {["Dashboard", "Award", "Judges", "Website"].map((text, index) => (
+        {["Dashboard", "Judges", "Website"].map((text) => (
           <ListItem key={text} disablePadding>
             <ListItemButton
-              onClick={() => handleNavigation(text)}
+              onClick={() => handleNavigation(`/${text.toLowerCase()}`)}
               sx={{
                 display: "flex",
                 justifyContent: "center",
@@ -71,6 +112,66 @@ export default function AdminLayout({ window, children }: Props) {
             </ListItemButton>
           </ListItem>
         ))}
+
+        {/* Awards section with expandable submenu */}
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={handleAwardsClick}
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              pl: 3,
+            }}
+          >
+            <ListItemText
+              primary="Awards"
+              primaryTypographyProps={{
+                sx: {
+                  fontWeight: 700,
+                  fontSize: "22px",
+                  lineHeight: "111.00000000000001%",
+                  letterSpacing: "4.5%",
+                  color: "#721F31",
+                },
+              }}
+            />
+            {awardsOpen ? <ExpandLess /> : <ExpandMore />}
+          </ListItemButton>
+        </ListItem>
+
+        <Collapse in={awardsOpen} timeout="auto" unmountOnExit>
+          <List component="div" disablePadding>
+            {loading && (
+              <ListItem sx={{ justifyContent: "center" }}>
+                <CircularProgress />
+              </ListItem>
+            )}
+
+            {error && (
+              <ListItem>
+                <ListItemText primary={`Error: ${error}`} />
+              </ListItem>
+            )}
+
+            {awards?.map((award) => (
+              <ListItem key={award.id} disablePadding sx={{ pl: 4 }}>
+                <ListItemButton
+                  onClick={() => handleNavigation(`/award/${award.id}`)}
+                >
+                  <ListItemText
+                    primary={award.nameEn}
+                    primaryTypographyProps={{
+                      sx: {
+                        fontSize: "18px",
+                        color: "gray",
+                      },
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Collapse>
       </List>
     </div>
   );
@@ -79,10 +180,8 @@ export default function AdminLayout({ window, children }: Props) {
     <Box sx={{ display: "flex", flexDirection: "column" }}>
       <CssBaseline />
 
-      {/* Header first */}
       <Header />
 
-      {/* Content area with drawer and main content */}
       <Box sx={{ display: "flex", position: "relative" }}>
         {/* Navigation drawer */}
         <Box
@@ -140,7 +239,6 @@ export default function AdminLayout({ window, children }: Props) {
             width: { sm: `calc(100% - ${drawerWidth}px)` },
           }}
         >
-          {/* Add your main content here */}
           {children}
         </Box>
       </Box>

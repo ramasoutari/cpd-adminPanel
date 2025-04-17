@@ -8,9 +8,9 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import React, { useEffect, useState } from "react";
 import FactorAccordion from "./factor-accordion";
-import { useRatingCriteria } from "../../context/RatingCriteriaContext";
+import { useRatingCriteria } from "../../app/context/RatingCriteriaContext";
 import axios from "axios";
-import axiosInstance from "../../utils/axios";
+import axiosInstance from "../../app/utils/axios";
 import Tooltip from "@mui/material/Tooltip";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ApiDialog from "../../components/dialog";
@@ -56,27 +56,28 @@ export default function RatingCriteria({ language, awardId }) {
                 if (q.type === "004") {
                   return {
                     ...baseQuestion,
-                    answers: q.answers?.map((a) => ({
-                      id: a.id,
-                      scaleMin: a.scaleMin || "", // Make sure this matches your API response
-                      scaleMax: a.scaleMax || "",
-                      scaleJump: a.scaleJump || "",
-                      scaleNotes:
-                        language === "Ar" ? a.scaleNotesAr : a.scaleNotesEn,
-                      text: "",
-                      answer: "",
-                      weight: "",
-                    })) || [
-                      {
-                        scaleMin: "",
-                        scaleMax: "",
-                        scaleJump: "",
-                        scaleNotes: "",
-                        text: "",
-                        answer: "",
-                        weight: "",
-                      },
-                    ],
+                    answers:
+                      q.answers?.length > 0
+                        ? [
+                            {
+                              id: q.answers[0].id,
+                              scaleMin: q.answers[0].scaleMin || "",
+                              scaleMax: q.answers[0].scaleMax || "",
+                              scaleJump: q.answers[0].scaleJump || "",
+                              scaleNotes:
+                                language === "Ar"
+                                  ? q.answers[0].scaleNotesAr
+                                  : q.answers[0].scaleNotesEn,
+                            },
+                          ]
+                        : [
+                            {
+                              scaleMin: "",
+                              scaleMax: "",
+                              scaleJump: "",
+                              scaleNotes: "",
+                            },
+                          ],
                   };
                 } else {
                   return {
@@ -174,7 +175,12 @@ export default function RatingCriteria({ language, awardId }) {
   };
 
   const addAccordion = () => {
-    if (expandedPanel) {
+    // Check if any accordion is currently being edited
+    const isAnyAccordionEditing = accordions.some(
+      (accordion) => accordion.isAccordionEditing
+    );
+
+    if (isAnyAccordionEditing) {
       showErrorDialog(
         "Please save or cancel the current factor before adding a new one"
       );
@@ -189,7 +195,7 @@ export default function RatingCriteria({ language, awardId }) {
         factorDescription: "",
         relativeweight: "",
       },
-      isAccordionEditing: true,
+      isAccordionEditing: true, // Set this new accordion to editing mode
       addQuestioner: false,
       questioners: [],
       fieldErrors: {
@@ -201,7 +207,7 @@ export default function RatingCriteria({ language, awardId }) {
     };
 
     setAccordions([...accordions, newAccordion]);
-    setExpandedPanel(newId);
+    setExpandedPanel(newId); // Optionally keep this if you still want to expand the new accordion
   };
   const handleCloseDialog = () => {
     setDialogOpen(false);
@@ -268,7 +274,6 @@ export default function RatingCriteria({ language, awardId }) {
           </Button>
         </Box>
       </Stack>
-
       <Box>
         {accordions.map((accordion, index) => (
           <FactorAccordion
