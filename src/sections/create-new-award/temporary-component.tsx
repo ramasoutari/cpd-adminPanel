@@ -2921,10 +2921,32 @@ export default function TemporaryComponent() {
                                       </InputLabel>
                                       <DesktopDatePicker
                                         minDate={dayjs()}
+                                        shouldDisableDate={(dateParam) => {
+                                          const chosenMilestones =
+                                            timelineEntries.filter(
+                                              (x) => x.type === "002" && x.date
+                                            );
+
+                                          if (chosenMilestones.length > 0) {
+                                            return !!chosenMilestones
+                                              .map((x) =>
+                                                new Date(x?.date).getDay()
+                                              )
+                                              .includes(
+                                                new Date(
+                                                  dateParam.toDate()
+                                                )?.getDay()
+                                              );
+                                          }
+
+                                          return false;
+                                        }}
                                         disabled={!isAccordionThreeEditing}
                                         value={
-                                          entry.date ? dayjs(entry.date) : null
-                                        } // Explicit null when no date
+                                          entry.date
+                                            ? dayjs(entry.date)
+                                            : undefined
+                                        }
                                         onChange={(newDate) => {
                                           handleChangeEntry(
                                             originalIndex,
@@ -2932,7 +2954,7 @@ export default function TemporaryComponent() {
                                             "date",
                                             newDate
                                               ? newDate.format("YYYY-MM-DD")
-                                              : null // Store null if cleared
+                                              : undefined
                                           );
                                         }}
                                         slotProps={{
