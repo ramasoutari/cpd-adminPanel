@@ -991,9 +991,9 @@ export default function FactorAccordion({
                 disabled={!accordion.isAccordionEditing}
                 placeholder="Factor Name"
                 value={
-                  accordion.factorData.factorName
-                    ? accordion.factorData.factorName
-                    : accordion.tempEditData?.factorName
+                  accordion.isAccordionEditing
+                    ? (accordion.tempEditData?.factorName ?? "")
+                    : (accordion.factorData.factorName ?? "")
                 }
                 error={accordion.fieldErrors.factorName}
                 helperText={

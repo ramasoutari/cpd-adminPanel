@@ -1,3 +1,4 @@
+"use client";
 import axiosInstance from "@/app/utils/axios";
 import {
   Button,
@@ -23,9 +24,13 @@ import {
   FormControlLabel,
   Radio,
   Checkbox,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 import { visuallyHidden } from "@mui/utils";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import SearchIcon from "@mui/icons-material/Search";
@@ -48,6 +53,11 @@ function Judges({ award }) {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [order, setOrder] = useState<"asc" | "desc">("asc");
   const [orderBy, setOrderBy] = useState<keyof Judge>("name");
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleClick = (event) => setAnchorEl(event.currentTarget);
+  const handleClose = () => setAnchorEl(null);
 
   useEffect(() => {
     const fetchAwardJudges = async () => {
@@ -64,6 +74,44 @@ function Judges({ award }) {
 
     fetchAwardJudges();
   }, [award.id]);
+  const dummyJudgesData = [
+    {
+      id: "1",
+      name: "Judge John Doe",
+      acceptedDate: "2025-04-01T10:00:00Z",
+      committee: "Criminal Justice",
+      status: "Active",
+    },
+    {
+      id: "2",
+      name: "Judge Jane Smith",
+      acceptedDate: "2025-03-28T09:30:00Z",
+      committee: "Family Court",
+      status: "Pending",
+    },
+    {
+      id: "3",
+      name: "Judge Michael Lee",
+      acceptedDate: "2025-04-02T11:15:00Z",
+      committee: "Civil Law",
+      status: "Active",
+    },
+    {
+      id: "4",
+      name: "Judge Emma Johnson",
+      acceptedDate: "2025-03-25T14:00:00Z",
+      committee: "Appeals",
+      status: "Inactive",
+    },
+    {
+      id: "5",
+      name: "Judge William Brown",
+      acceptedDate: "2025-03-29T16:30:00Z",
+      committee: "Criminal Justice",
+      status: "Active",
+    },
+  ];
+
   const committees = [
     { id: "1", name: "Design Committee" },
     { id: "2", name: "Evaluation Team" },
@@ -100,7 +148,7 @@ function Judges({ award }) {
     setPage(0);
   };
 
-  const sortedJudges = judges.sort((a, b) => {
+  const sortedJudges = dummyJudgesData.sort((a, b) => {
     if (a[orderBy] < b[orderBy]) {
       return order === "asc" ? -1 : 1;
     }
@@ -329,13 +377,55 @@ function Judges({ award }) {
                       {judge.status}
                     </Typography>
                   </TableCell>
-                  <TableCell>
-                    <IconButton aria-label="edit" size="small">
-                      <EditIcon fontSize="small" />
+                  <TableCell align="right">
+                    <IconButton
+                      aria-label="more"
+                      aria-controls={open ? "actions-menu" : undefined}
+                      aria-haspopup="true"
+                      onClick={handleClick}
+                      size="small"
+                    >
+                      <MoreHorizIcon />
                     </IconButton>
-                    <IconButton aria-label="delete" size="small" sx={{ ml: 1 }}>
-                      <DeleteIcon fontSize="small" color="error" />
-                    </IconButton>
+                    <Menu
+                      id="actions-menu"
+                      anchorEl={anchorEl}
+                      open={open}
+                      onClose={handleClose}
+                      anchorOrigin={{
+                        vertical: "bottom",
+                        horizontal: "right",
+                      }}
+                      transformOrigin={{
+                        vertical: "top",
+                        horizontal: "right",
+                      }}
+                    >
+                      <MenuItem
+                        onClick={() => {
+                          //   onEdit?.();
+                          handleClose();
+                        }}
+                      >
+                        Activete
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          //   onDelete?.();
+                          handleClose();
+                        }}
+                      >
+                        Remove
+                      </MenuItem>
+                      <MenuItem
+                        onClick={() => {
+                          //   onDelete?.();
+                          handleClose();
+                        }}
+                      >
+                        View
+                      </MenuItem>
+                    </Menu>
                   </TableCell>
                 </TableRow>
               ))
@@ -478,8 +568,6 @@ function Judges({ award }) {
                 />
               </RadioGroup>
             </FormControl>
-
-            {/* Team Leader Checkbox */}
             <FormControlLabel
               control={
                 <Checkbox
@@ -491,8 +579,6 @@ function Judges({ award }) {
               label="Team Leader"
               sx={{ mb: 2, display: "block" }}
             />
-
-            {/* Min/Max Number Fields */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography
@@ -554,8 +640,6 @@ function Judges({ award }) {
                 />
               </Box>
             </Box>
-
-            {/* Sorting Radio */}
             <FormControl component="fieldset" sx={{ mb: 2, width: "100%" }}>
               <FormLabel
                 component="legend"
@@ -588,8 +672,6 @@ function Judges({ award }) {
                 />
               </RadioGroup>
             </FormControl>
-
-            {/* Distribution Radio */}
             <FormControl component="fieldset" sx={{ width: "100%" }}>
               <FormLabel
                 component="legend"
@@ -705,6 +787,16 @@ function Judges({ award }) {
                       fontSize: "16px",
                     }}
                     className="hover:underline hover:text-blue-700"
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem(
+                          "currentAward",
+                          JSON.stringify(award)
+                        );
+                      } catch (error) {
+                        console.error("Failed to store award data:", error);
+                      }
+                    }}
                   >
                     {committee.name}
                   </Link>

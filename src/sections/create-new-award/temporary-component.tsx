@@ -308,7 +308,6 @@ export default function TemporaryComponent() {
         setIsAccordionOneEditing(true);
         return;
       }
-
       setAward(response.data.data);
       setDialogTitle("Successfully");
       setType("success");
@@ -319,7 +318,7 @@ export default function TemporaryComponent() {
       setDialogTitle("Error");
       setType("error");
       setDialogMessage(
-        error.response?.data?.message ||
+        error?.result?.response.message ||
           "An error occurred while saving the award."
       );
       setIsAccordionOneEditing(true);
@@ -710,7 +709,7 @@ export default function TemporaryComponent() {
             updatedEntries.push({
               type: "002",
               milestoneId: m.id,
-              date: new Date().toISOString(),
+              date: null,
             });
           }
         });
@@ -747,7 +746,7 @@ export default function TemporaryComponent() {
   const handleAddEntry = (type) => {
     const newEntry = {
       type,
-      date: new Date().toISOString(),
+      date: null,
     };
 
     if (type === "001") {
@@ -756,10 +755,12 @@ export default function TemporaryComponent() {
       newEntry.titleEn = "";
       newEntry.titleAr = "";
       newEntry.note = "";
+      newEntry.date = "";
       newEntry.NoteEn = "";
       newEntry.NoteAr = "";
     } else if (type === "002") {
       newEntry.milestoneId = "";
+      newEntry.date = "";
     }
 
     setTimelineEntries((prev) => {
@@ -1315,7 +1316,7 @@ export default function TemporaryComponent() {
       const eventsData = response.data.data.map((event) => ({
         type: "001",
         id: event.id || null,
-        date: event.date || new Date().toISOString(),
+        date: event.date || null,
         title: event.title || "",
         titleEn: event.titleEn || event.title || "",
         titleAr: event.titleAr || event.title || "",
@@ -2922,19 +2923,18 @@ export default function TemporaryComponent() {
                                         minDate={dayjs()}
                                         disabled={!isAccordionThreeEditing}
                                         value={
-                                          entry.date &&
-                                          dayjs(entry.date).isValid()
-                                            ? dayjs(entry.date)
-                                            : null
-                                        }
-                                        onChange={(newDate) =>
+                                          entry.date ? dayjs(entry.date) : null
+                                        } // Explicit null when no date
+                                        onChange={(newDate) => {
                                           handleChangeEntry(
                                             originalIndex,
                                             "002",
                                             "date",
                                             newDate
-                                          )
-                                        }
+                                              ? newDate.format("YYYY-MM-DD")
+                                              : null // Store null if cleared
+                                          );
+                                        }}
                                         slotProps={{
                                           textField: {
                                             fullWidth: true,
@@ -2947,6 +2947,14 @@ export default function TemporaryComponent() {
                                             sx: {
                                               borderRadius: "12px",
                                               backgroundColor: "white",
+                                              "& .MuiInputBase-root": {
+                                                "& fieldset": {
+                                                  borderColor: "#e0e0e0", // Match your design
+                                                },
+                                                "&:hover fieldset": {
+                                                  borderColor: "#bdbdbd", // Hover state
+                                                },
+                                              },
                                             },
                                           },
                                         }}

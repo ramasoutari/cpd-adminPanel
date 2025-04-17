@@ -1,3 +1,4 @@
+"use client";
 import * as React from "react";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -159,7 +160,7 @@ export default function AdminLayout({ window, children }: Props) {
                   onClick={() => handleNavigation(`/award/${award.id}`)}
                 >
                   <ListItemText
-                    primary={award.nameEn}
+                    primary={award.name}
                     primaryTypographyProps={{
                       sx: {
                         fontSize: "18px",

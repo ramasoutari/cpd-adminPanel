@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import axiosInstance from "@/app/utils/axios";
 import {
   Box,
+  Button,
   CircularProgress,
   FormControl,
   InputLabel,
@@ -19,6 +20,7 @@ import ApiDialog from "@/components/dialog";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import AdminLayout from "@/sections/adminLayout";
 import Judges from "@/sections/judges";
+import AddIcon from "@mui/icons-material/Add";
 
 interface Award {
   id: string;
@@ -123,22 +125,50 @@ export default function AwardPage({ params }: { params: { id: string } }) {
           <Stack
             direction="row"
             sx={{
-              display: "flex",
               alignItems: "center",
-              justifyContent: "center",
+              justifyContent: "space-between",
               p: 3,
             }}
           >
-            <Typography
-              sx={{
-                fontWeight: 900,
-                fontSize: "64px",
-                color: " #721F31",
-                minHeight: "50px",
-              }}
-            >
-              {award.nameEn}
-            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Box sx={{ flex: 1, textAlign: "center" }}>
+              <Typography
+                sx={{
+                  fontWeight: 900,
+                  fontSize: "64px",
+                  color: "#721F31",
+                  minHeight: "50px",
+                  pb: 2,
+                }}
+              >
+                {award?.nameEn || "Loading..."}
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1, textAlign: "right" }}>
+              <Button
+                sx={{
+                  color: "white",
+                  backgroundColor: "#721F31",
+                  borderRadius: "8px",
+                  textTransform: "none",
+
+                  minWidth: "160px",
+                  height: { xs: "60px", sm: "40px", md: "35px" },
+                  boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.1)",
+                  "&:hover": {
+                    backgroundColor: "#5a1827",
+                  },
+                  ":disabled": {
+                    backgroundColor: "#D3D3D3",
+                    color: "white",
+                  },
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <AddIcon />
+                Create Award
+              </Button>
+            </Box>
           </Stack>
         </Box>
         <Box
